@@ -3,8 +3,11 @@
 #include <util/delay.h>
 #include "uart.h"
 
-// LED is on pin 0 of PORTC
-#define LED 0
+// GRN LED is on pin 5 of PORTA
+#define LED_GRN 5
+// YEL LED is on pin 3 of PORTA
+#define LED_YEL 3
+// Blink delay
 #define DELAY_MS 500
 
 int main()
@@ -15,22 +18,29 @@ int main()
     CCP = 0xD8;
     CLKCTRL_MCLKCTRLB &= ~(1);
 
-    // setup LED pin for output in port C's direction register and set LED pin LOW
-    PORTC_DIR |= (1 << LED);
-    PORTC_OUT &= ~(1 << LED);
+    // GRN LED on PA5
+    PORTA.DIR |= PIN5_bm;
+    // YEL LED on PB3
+    PORTB.DIR |= PIN3_bm;
+
+    // Initialize output pins
+    PORTA.OUT |=  PIN5_bm; // High
+    PORTB.OUT &= ~PIN3_bm; // Low
 
     // Initialize UART
-    USART0_init();
+    // USART0_init();
 
     while (1)
     {
-        // Toggle pin 0
-        PORTC_OUT ^= PIN0_bm;
+        // Toggle GRN LED
+        PORTA.OUT ^= PIN5_bm;
+        // Toggle YEL LED
+        PORTB.OUT ^= PIN3_bm;
 
         // Print something on the UART
-        printf("Hello World");
+        // printf("Hello World");
 
-        _delay_ms(500);
+        _delay_ms(300);
     }
 
     return 0;
