@@ -45,7 +45,7 @@ size: main.elf
 	avr-size $<
 
 # Flash the .hex file using avrdude
-flash: main.elf
+flash: main.hex
 	avrdude -v -p $(DEVICE) -c $(PROGRAMMER) -P $(PORT) -b $(BAUD) -U flash:w:main.hex:i
 
 # Fuses are non-volatile settings that can be set by avrdude and persist between resets
