@@ -1,3 +1,7 @@
+# BNCTR FW
+Firmware for my version of the [BeanCounter](https://github.com/NPoole/BeanCounter).
+This is a port of the original firmware by Nick Poole.
+
 ## Toolchain Setup
 ### Arch Linux
 * Compiling: `avr-gcc avr-libc`
@@ -17,4 +21,5 @@ language server know about the used sources etc. I use
 Might work the same for other editors using LSP.
 
 ## References
-* https://michael-crum.com/attiny1616/
+* General and programming: https://michael-crum.com/attiny1616/
+* B type timers: https://www.microchip.com/en-us/application-notes/tb3214

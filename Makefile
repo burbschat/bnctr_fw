@@ -4,13 +4,13 @@ DEVICE = attiny1616
 PROGRAMMER = serialupdi
 
 # Clock speed must be provided for delays to be timed properly 
-CLOCK = 20000000
+F_CPU = 20000000
 
 # Baud rate for programming
 BAUD = 115200
 
 # Define sources
-SRCS := main.c uart.c
+SRCS := main.c utils.c uart.c
 # Obtain object file names from source file names
 OBJS := $(SRCS:.c=.o)
 
@@ -21,7 +21,7 @@ OBJS := $(SRCS:.c=.o)
 # - F_CPU defined as our clock speed (-DF_CPU)
 # - Create dependency .d files for header files (-MMD -MP)
 CC = avr-gcc 
-CFLAGS = -Wall -Os -mmcu=$(DEVICE) -DF_CPU=$(CLOCK) -MMD -MP
+CFLAGS = -Wall -Os -mmcu=$(DEVICE) -DF_CPU=$(F_CPU) -MMD -MP
 
 default: main.hex
 
