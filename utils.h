@@ -26,14 +26,14 @@ static inline void PIN_TOGGLE(Pin p) { p.port->OUTTGL = (uint8_t)(1u << p.pin); 
 // Use arrays for pins that we might want to index. Consequently indecies start
 // at 0, not as 1 (as for the schematic), but start at 0 is nicer for the code
 // so adopt that here.
-static const uint8_t N_DIGS = 3;
+#define N_DIGS 3
 static const Pin DIGS[] = {
     { &PORTA, 2 },
     { &PORTA, 3 },
     { &PORTA, 1 },
 };
 
-static const uint8_t N_SEGS = 7;
+#define N_SEGS 7
 static const Pin SEGS[] = {
     { &PORTC, 3 }, { &PORTC, 1 }, { &PORTC, 2 }, { &PORTC, 0 },
     { &PORTB, 1 }, { &PORTB, 0 }, { &PORTB, 2 },
@@ -57,6 +57,9 @@ static const uint8_t DIG_MASK_LUT[10] = {
 };
 
 void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins);
+void blankDisplay();
+void clearDigitBuffer(uint8_t *buffer);
+void setDigitBufferInt(uint16_t val, uint8_t *buffer);
 void displayDigit(uint8_t mask, uint8_t dig);
 void digitsMuxNext(uint8_t *segMasks);
 void tcaInterruptInit(TCA_t *timer, TCA_SINGLE_CLKSEL_t clksel, register16_t count);

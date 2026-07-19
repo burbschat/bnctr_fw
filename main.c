@@ -1,18 +1,15 @@
 #include "utils.h"
-#include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/io.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <util/delay.h>
 
 #define MUX_STEP_PERIOD 1
 
-// These bytes are used to store the state of every LED in the 7-segment
-// display. They are essentially a frame buffer for the 7-seg.
-// TODO: Make a struct!
-uint8_t digit1 = 0;
-uint8_t digit2 = 0;
-uint8_t digit3 = 0;
+// Buffer to store 7 segment LED masks for what is currently on the display.
+// Pass this to the multiplexing functions which flashes one digit at a time.
+uint8_t digitBuffer[N_DIGS];
 
 // Device Mode
 // This is the state of the device wrt the top-level state machine.
@@ -74,10 +71,15 @@ void setup() {
     PORTB.DIR |= 0b001111;   // 4, 5 are switch inputs
     PORTC.DIR |= 0b1111;     // All outputs
 
-    // Initialize output pins to low
+    // Initialize all output pins to low
     PORTA.OUT = 0x00;
     PORTB.OUT = 0x00;
     PORTC.OUT = 0x00;
+
+    // Blank display (all digits off)
+    blankDisplay();
+    // Clear the digit buffer
+    clearDigitBuffer(digitBuffer);
 
     // Turn GRN LED on
     PIN_HIGH(GRN_LED);
@@ -101,8 +103,7 @@ ISR(TCA0_OVF_vect) {
     // every other call and blank every other time. The ratio between the two
     // counts then defines a duty cycle.
 
-    digitsMuxNext(DIG_MASK_LUT);
-    PIN_TOGGLE(GRN_LED);
+    digitsMuxNext(digitBuffer);
 }
 
 // Example: Type B timer interrupt
@@ -112,14 +113,19 @@ ISR(TCA0_OVF_vect) {
 // }
 
 void loop() {
+    static uint16_t count;
+    setDigitBufferInt(count, digitBuffer);
+    if (count >= 0xFFFF) {
+        count = 0;
+    } else {
+        count++;
+    }
+
     // Toggle GRN and YEL LED
-    // PIN_TOGGLE(GRN_LED);
+    PIN_TOGGLE(GRN_LED);
     PIN_TOGGLE(YEL_LED);
 
-    // Print something on the UART
-    // printf("Hello World");
-
-    _delay_ms(1100);
+    _delay_ms(10);
 }
 
 int main() {

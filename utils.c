@@ -14,10 +14,30 @@ void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins) {
     }
 };
 
-// Drive given digit using passed mask
-void displayDigit(uint8_t segMask, uint8_t dig) {
+void blankDisplay() {
     // Turn all digits off. Pins HIGH as P-channel MOSFET used.
     driveMask(~0, DIGS, N_DIGS);
+}
+
+void clearDigitBuffer(uint8_t *buffer) {
+    for (uint8_t i = 0; i < N_DIGS; i++) {
+        buffer[i] = 0;
+    }
+}
+
+// Only have three digits so 16 bits suffices but 8 would be insufficient
+void setDigitBufferInt(uint16_t val, uint8_t *buffer) {
+    uint32_t tempVal = val;
+    for (uint8_t i = 0; i < N_DIGS; i++) {
+        buffer[N_DIGS - i - 1] = DIG_MASK_LUT[tempVal % 10];
+        tempVal /= 10;
+    }
+}
+
+// Drive given digit using passed mask
+void displayDigit(uint8_t segMask, uint8_t dig) {
+    // Blank display before messing with the enabled segments
+    blankDisplay();
     // Turn all digits off. Enabled pins LOW as low side driver.
     driveMask(~segMask, SEGS, N_SEGS);
     // Turn desired digit on. Enabled digit LOW, other HIGH as P-channel MOSFET
@@ -34,7 +54,7 @@ void digitsMuxNext(uint8_t *segMasks) {
     displayDigit(segMasks[step], step);
 
     step++;
-    step = step % 3;
+    step = step % N_DIGS;
 }
 
 // Initialize B type timer for periodic interrupt.
