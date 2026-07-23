@@ -13,6 +13,7 @@ BAUD = 115200
 SRCS := main.c utils.c uart.c
 # Obtain object file names from source file names
 OBJS := $(SRCS:.c=.o)
+OBJS_DEBUG := $(SRCS:.c=_debug.o)
 
 # Compile with options:
 # - All warnings (-Wall)
@@ -22,6 +23,10 @@ OBJS := $(SRCS:.c=.o)
 # - Create dependency .d files for header files (-MMD -MP)
 CC = avr-gcc 
 CFLAGS = -Wall -Os -mmcu=$(DEVICE) -DF_CPU=$(F_CPU) -MMD -MP
+# Extra flags for debug build:
+# - Include debug symbols (-g)
+# - No optimization (-O0, last one wins so -Os ignored)
+CFLAGS_DEBUG = $(CFLAGS) -g -O0
 
 default: main.hex
 
@@ -29,24 +34,40 @@ default: main.hex
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# Compile single source file with debug flags
+%_debug.o: %.c
+	$(CC) $(CFLAGS_DEBUG) -c $< -o $@
+
 # Read .d files to resolve header dependencies
 -include $(OBJS:.o=.d)
+-include $(OBJS_DEBUG:.o=.d)
 
 # Link objects
 main.elf: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
+main_debug.elf: $(OBJS_DEBUG)
+	$(CC) $(CFLAGS_DEBUG) -o $@ $^
+
 # Produce binary file for flashing
-main.hex: main.elf
+%.hex: %.elf
 	avr-objcopy -O ihex $< $@
 
 # List section sizes and total size of binary files
-size: main.elf
+size_%: %.elf
 	avr-size $<
 
+# Size shorthands
+size: size_main
+size_debug: size_main_debug
+
 # Flash the .hex file using avrdude
-flash: main.hex
-	avrdude -v -p $(DEVICE) -c $(PROGRAMMER) -P $(PORT) -b $(BAUD) -U flash:w:main.hex:i
+flash_%: %.hex
+	avrdude -v -p $(DEVICE) -c $(PROGRAMMER) -P $(PORT) -b $(BAUD) -U flash:w:$<:i
+
+# Flash shorthands
+flash: flash_main
+flash_debug: flash_main_debug
 
 # Fuses are non-volatile settings that can be set by avrdude and persist between resets
 # Setting fuse2 to 0x7e enables 20Mhz clock
@@ -55,6 +76,4 @@ fuse:
 	avrdude -v -p $(DEVICE) -c $(PROGRAMMER) -P $(PORT) -b $(BAUD) -U fuse2:w:0x7e:m
 
 clean:
-	rm $(OBJS)
-	rm main.elf
-	rm main.hex
+	rm -f $(OBJS) $(OBJS_DEBUG) main.elf main.hex main_debug.elf main_debug.hex
