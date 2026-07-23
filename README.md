@@ -27,7 +27,9 @@ The makefile contains debug targets for that purpose. For example `make
 flash_debug` to build and flash the image with debug symbols. Note that a debug
 image will be much larger (have a look at `make size_debug`).
 
-Using [`avr-absurd`](https://github.com/feline-felicity/avr-absurd).
+Using [`avr-absurd`](https://github.com/feline-felicity/avr-absurd). Exactly
+what I was looking for for this use case (UPDI through serial to USB bridge).
+Many thanks to the developer.
 ```sh
 avr-absurd -P /dev/ttyUSB0 -b 115200
 avr-gdb main_debug.elf
@@ -38,6 +40,12 @@ target extended-remote :3333
 ```
 Use gbd as usual. Apparently the attiny1616 only supports up to two breakpoints
 so keep that in mind I suppose.
+
+`avr-absurd` obviously occupies the serial port. To re-compile and flash
+without stopping `avr-absurt` consider re-compiling with `make main_debug.elf`
+and then use the `load` command in gdb to flash to the device (ridiculously
+useful). This also reloads the debug info like code listings (gdb `list`
+command).
 
 ## References
 * General and programming: https://michael-crum.com/attiny1616/
