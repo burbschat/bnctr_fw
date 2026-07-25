@@ -102,3 +102,22 @@ void tcbInterruptInit(TCB_t *timer, TCB_CLKSEL_t clksel, register16_t count) {
     // Enable timer, set timer clock
     timer->CTRLA = clksel | TCB_ENABLE_bm;
 }
+
+void setDACRef(DAC_t *dac, register8_t val) {
+    // TODO: Scale of a voltage value?
+    // V_DACREF = DACREF/256 * V_REF
+    dac->DATA = val;
+}
+
+void acInterruptInit(AC_t *ac, AC_MUXPOS_t pos, AC_MUXNEG_t neg, AC_HYSMODE_t hysmode, bool outen) {
+    // Set positive and negative input
+    ac->MUXCTRLA = pos | neg;
+    // Enable AC, set hysteresis, enable output on pin.
+    // Output pin is fixed for each AC, see datasheet.
+    ac->CTRLA = AC_ENABLE_bm | hysmode;
+    if (outen) {
+        ac->CTRLA |= AC_OUTEN_bm;
+    }
+    // Enable interrupt
+    ac->INTCTRL = AC_CMP_bm;
+}

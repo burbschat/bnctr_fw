@@ -1,5 +1,6 @@
 #pragma once
 #include <avr/io.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 // This is the amount of dead time where we allow a digit to be on before
@@ -20,6 +21,8 @@ static inline void PIN_LOW(Pin p) { p.port->OUTCLR = (1 << p.pin); }
 static inline void PIN_TOGGLE(Pin p) { p.port->OUTTGL = (uint8_t)(1u << p.pin); }
 
 // Define pins as assigned on the board
+// Note that the LED pins are also used as the AC output indicators so they can
+// either be set manually or automatically reflect the AC states.
 #define YEL_LED ((Pin){ &PORTB, 3 })
 #define GRN_LED ((Pin){ &PORTA, 5 })
 
@@ -56,11 +59,18 @@ static const uint8_t DIG_MASK_LUT[10] = {
     0b01101011, 0b01111011, 0b00100101, 0b01111111, 0b01101111,
 };
 
+// Digit display
 void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins);
 void blankDisplay();
 void clearDigitBuffer(uint8_t *buffer);
 void setDigitBufferInt(uint16_t val, uint8_t *buffer);
 void displayDigit(uint8_t mask, uint8_t dig);
 void digitsMuxNext(uint8_t *segMasks);
+
+// Timers
 void tcaInterruptInit(TCA_t *timer, TCA_SINGLE_CLKSEL_t clksel, register16_t count);
 void tcbInterruptInit(TCB_t *timer, TCB_CLKSEL_t clksel, uint16_t count);
+
+// AC
+void setDACRef(DAC_t *dac, register8_t val);
+void acInterruptInit(AC_t *ac, AC_MUXPOS_t pos, AC_MUXNEG_t neg, AC_HYSMODE_t hysmode, bool outen);

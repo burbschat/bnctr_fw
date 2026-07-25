@@ -49,4 +49,6 @@ command).
 
 ## References
 * General and programming: https://michael-crum.com/attiny1616/
+* A type timers: https://www.microchip.com/en-us/application-notes/tb3217
 * B type timers: https://www.microchip.com/en-us/application-notes/tb3214
+* Analog comparator (AC): https://www.microchip.com/en-us/application-notes/tb3211

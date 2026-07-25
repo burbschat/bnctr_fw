@@ -76,13 +76,15 @@ void setup() {
     PORTB.OUT = 0x00;
     PORTC.OUT = 0x00;
 
+    // Disable input buffer/pullup for AC input pins to get highest possible
+    // impedance.
+    PORTA.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;
+    PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;
+
     // Blank display (all digits off)
     blankDisplay();
     // Clear the digit buffer
     clearDigitBuffer(digitBuffer);
-
-    // Turn GRN LED on
-    PIN_HIGH(GRN_LED);
 
     // Setup type A timer to call interrupt at 1/MUX_STEP_PERIOD Hz
     tcaInterruptInit(&TCA0, TCA_SINGLE_CLKSEL_DIV1024_gc, F_CPU / 1024 * MUX_STEP_PERIOD / 1000);
@@ -90,13 +92,30 @@ void setup() {
     // Example: Setup type B timer to call interrupt
     // tcbInterruptInit(&TCB0, TCB_CLKSEL_CLKDIV1_gc, 1000);
 
+    // Use DAC output as reference voltage for AC so setup the DAC(s).
+    // AC0 uses DAC0, AC1 uses DAC1 etc.
+    VREF.CTRLA = VREF_DAC0REFSEL_1V5_gc | VREF_DAC1REFSEL_1V5_gc;
+    VREF.CTRLB = VREF_DAC0REFEN_bm | VREF_DAC1REFEN_bm;
+    // Enable DAC(s)
+    DAC0.CTRLA = DAC_ENABLE_bm;
+    DAC1.CTRLA = DAC_ENABLE_bm;
+
+    // Set reference voltages
+    setDACRef(&DAC0, 255);
+    setDACRef(&DAC1, 0);
+
+    // Setup ACs and enable interrupts. Also enables AC output mapping to
+    // package pin.
+    acInterruptInit(&AC0, AC_MUXPOS_PIN0_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_25mV_gc, true);
+    acInterruptInit(&AC1, AC_MUXPOS_PIN0_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_25mV_gc, true);
+
     // Enable global interrupts. Required call to use any interrupts.
     sei();
 }
 
 // Type A timer interrupt for digit MUX step
 ISR(TCA0_OVF_vect) {
-    // Clear interrupt flag
+    // Must clear interrupt flag manually
     TCA0.SINGLE.INTFLAGS = TCA_SINGLE_OVF_bm;
 
     // TODO: Implement dimming by setting SINGLE.PER to one or another value
@@ -108,9 +127,20 @@ ISR(TCA0_OVF_vect) {
 
 // Example: Type B timer interrupt
 // ISR(TCB0_INT_vect) {
-//     // Clear interrupt flag
+//     // Must clear interrupt flag manually
 //     TCB0.INTFLAGS = TCB_CAPT_bm;
 // }
+
+// AC Interrupts for hole detection
+ISR(AC0_AC_vect) {
+    // Must clear interrupt flag manually
+    AC0.STATUS = AC_CMP_bm;
+}
+
+ISR(AC1_AC_vect) {
+    // Must clear interrupt flag manually
+    AC1.STATUS = AC_CMP_bm;
+}
 
 void loop() {
     static uint16_t count;
@@ -121,10 +151,9 @@ void loop() {
         count++;
     }
 
-    // Toggle GRN and YEL LED
-    PIN_TOGGLE(GRN_LED);
-    PIN_TOGGLE(YEL_LED);
-
+    // This blocks and thus slows down the MCU. Useful for debugging.
+    // Eventually the MCU should run as fast as possible so make sure no
+    // blocking delays remain.
     _delay_ms(10);
 }
 
