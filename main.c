@@ -101,13 +101,18 @@ void setup() {
     DAC1.CTRLA = DAC_ENABLE_bm;
 
     // Set reference voltages
-    setDACRef(&DAC0, 255);
-    setDACRef(&DAC1, 0);
+    setDACRef(&DAC0, 100);
+    setDACRef(&DAC1, 100);
 
     // Setup ACs and enable interrupts. Also enables AC output mapping to
     // package pin.
-    acInterruptInit(&AC0, AC_MUXPOS_PIN0_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_25mV_gc, true);
-    acInterruptInit(&AC1, AC_MUXPOS_PIN0_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_25mV_gc, true);
+    // AC1 -> PA6 (IRDETA)
+    // AC0 -> PA7 (IRDETB)
+    acInterruptInit(&AC0, AC_MUXPOS_PIN0_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_OFF_gc, true);
+    acInterruptInit(&AC1, AC_MUXPOS_PIN1_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_OFF_gc, true);
+
+    // Turn on the IR LEDs
+    PIN_HIGH(IR_LED);
 
     // Enable global interrupts. Required call to use any interrupts.
     sei();

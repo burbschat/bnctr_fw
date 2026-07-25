@@ -21,10 +21,11 @@ static inline void PIN_LOW(Pin p) { p.port->OUTCLR = (1 << p.pin); }
 static inline void PIN_TOGGLE(Pin p) { p.port->OUTTGL = (uint8_t)(1u << p.pin); }
 
 // Define pins as assigned on the board
-// Note that the LED pins are also used as the AC output indicators so they can
-// either be set manually or automatically reflect the AC states.
+// Note that the GRN/YEL LED pins are also used as the AC output indicators so
+// they can either be set manually or automatically reflect the AC states.
 #define YEL_LED ((Pin){ &PORTB, 3 })
 #define GRN_LED ((Pin){ &PORTA, 5 })
+#define IR_LED ((Pin){ &PORTA, 4 })
 
 // Use arrays for pins that we might want to index. Consequently indecies start
 // at 0, not as 1 (as for the schematic), but start at 0 is nicer for the code
