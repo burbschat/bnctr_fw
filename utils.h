@@ -60,6 +60,10 @@ static const uint8_t DIG_MASK_LUT[10] = {
     0b01101011, 0b01111011, 0b00100101, 0b01111111, 0b01101111,
 };
 
+// Firmware specific setup (pins, reference voltages, ...)
+void setupPins();
+void setupDacVref(VREF_DAC0REFSEL_t ref1, VREF_DAC1REFSEL_t ref2);
+
 // Digit display
 void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins);
 void blankDisplay();
@@ -73,5 +77,7 @@ void tcaInterruptInit(TCA_t *timer, TCA_SINGLE_CLKSEL_t clksel, register16_t cou
 void tcbInterruptInit(TCB_t *timer, TCB_CLKSEL_t clksel, uint16_t count);
 
 // AC
-void setDACRef(DAC_t *dac, register8_t val);
-void acInterruptInit(AC_t *ac, AC_MUXPOS_t pos, AC_MUXNEG_t neg, AC_HYSMODE_t hysmode, bool outen);
+void setDacRef(DAC_t *dac, register8_t val);
+void acInterruptInit(AC_t *ac, AC_MUXPOS_t pos, AC_MUXNEG_t neg, AC_HYSMODE_t hysmode,
+                     AC_INTMODE_t intmode, bool outen);
+bool getAcOutState(AC_t *ac);

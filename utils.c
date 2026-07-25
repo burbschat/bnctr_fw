@@ -2,6 +2,35 @@
 #include <avr/io.h>
 #include <stdint.h>
 
+// Setup pins as required in this firmware
+void setupPins() {
+    // Set pin modes
+    PORTA.DIR |= 0b00111110; // 7, 6 are IR det inputs, 0 is UPDI
+    PORTB.DIR |= 0b001111;   // 4, 5 are switch inputs
+    PORTC.DIR |= 0b1111;     // All outputs
+
+    // Initialize all output pins to low
+    PORTA.OUT = 0x00;
+    PORTB.OUT = 0x00;
+    PORTC.OUT = 0x00;
+
+    // Disable input buffer/pullup for AC input pins to get highest possible
+    // impedance.
+    PORTA.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;
+    PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;
+}
+
+// Setup DAC for AC vref as required in this firmware
+void setupDacVref(VREF_DAC0REFSEL_t ref1, VREF_DAC1REFSEL_t ref2) {
+    // Use DAC output as reference voltage for AC so setup the DAC(s).
+    // AC0 uses DAC0, AC1 uses DAC1 etc.
+    VREF.CTRLA = ref1 | ref2;
+    VREF.CTRLB = VREF_DAC0REFEN_bm | VREF_DAC1REFEN_bm;
+    // Enable DAC(s)
+    DAC0.CTRLA = DAC_ENABLE_bm;
+    DAC1.CTRLA = DAC_ENABLE_bm;
+}
+
 // Drive pins organized in array according to mask
 void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins) {
     // Drive the digit lines according to value
@@ -103,21 +132,24 @@ void tcbInterruptInit(TCB_t *timer, TCB_CLKSEL_t clksel, register16_t count) {
     timer->CTRLA = clksel | TCB_ENABLE_bm;
 }
 
-void setDACRef(DAC_t *dac, register8_t val) {
+void setDacRef(DAC_t *dac, register8_t val) {
     // TODO: Scale of a voltage value?
     // V_DACREF = DACREF/256 * V_REF
     dac->DATA = val;
 }
 
-void acInterruptInit(AC_t *ac, AC_MUXPOS_t pos, AC_MUXNEG_t neg, AC_HYSMODE_t hysmode, bool outen) {
+void acInterruptInit(AC_t *ac, AC_MUXPOS_t pos, AC_MUXNEG_t neg, AC_HYSMODE_t hysmode,
+                     AC_INTMODE_t intmode, bool outen) {
     // Set positive and negative input
     ac->MUXCTRLA = pos | neg;
     // Enable AC, set hysteresis, enable output on pin.
     // Output pin is fixed for each AC, see datasheet.
-    ac->CTRLA = AC_ENABLE_bm | hysmode;
+    ac->CTRLA = AC_ENABLE_bm | hysmode | intmode;
     if (outen) {
         ac->CTRLA |= AC_OUTEN_bm;
     }
     // Enable interrupt
     ac->INTCTRL = AC_CMP_bm;
 }
+
+bool getAcOutState(AC_t *ac) { return ac->STATUS & AC_STATE_bm; }

@@ -66,20 +66,7 @@ void setup() {
     CCP = 0xD8;
     CLKCTRL_MCLKCTRLB &= ~(1);
 
-    // Set pin modes
-    PORTA.DIR |= 0b00111110; // 7, 6 are IR det inputs, 0 is UPDI
-    PORTB.DIR |= 0b001111;   // 4, 5 are switch inputs
-    PORTC.DIR |= 0b1111;     // All outputs
-
-    // Initialize all output pins to low
-    PORTA.OUT = 0x00;
-    PORTB.OUT = 0x00;
-    PORTC.OUT = 0x00;
-
-    // Disable input buffer/pullup for AC input pins to get highest possible
-    // impedance.
-    PORTA.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;
-    PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;
+    setupPins();
 
     // Blank display (all digits off)
     blankDisplay();
@@ -92,30 +79,42 @@ void setup() {
     // Example: Setup type B timer to call interrupt
     // tcbInterruptInit(&TCB0, TCB_CLKSEL_CLKDIV1_gc, 1000);
 
-    // Use DAC output as reference voltage for AC so setup the DAC(s).
-    // AC0 uses DAC0, AC1 uses DAC1 etc.
-    VREF.CTRLA = VREF_DAC0REFSEL_1V5_gc | VREF_DAC1REFSEL_1V5_gc;
-    VREF.CTRLB = VREF_DAC0REFEN_bm | VREF_DAC1REFEN_bm;
-    // Enable DAC(s)
-    DAC0.CTRLA = DAC_ENABLE_bm;
-    DAC1.CTRLA = DAC_ENABLE_bm;
+    setupDacVref(VREF_DAC0REFSEL_1V5_gc, VREF_DAC1REFSEL_1V5_gc);
 
     // Set reference voltages
-    setDACRef(&DAC0, 100);
-    setDACRef(&DAC1, 100);
+    setDacRef(&DAC0, 100);
+    setDacRef(&DAC1, 100);
 
     // Setup ACs and enable interrupts. Also enables AC output mapping to
     // package pin.
     // AC1 -> PA6 (IRDETA)
     // AC0 -> PA7 (IRDETB)
-    acInterruptInit(&AC0, AC_MUXPOS_PIN0_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_OFF_gc, true);
-    acInterruptInit(&AC1, AC_MUXPOS_PIN1_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_OFF_gc, true);
+    // Can set POS/NEG/BOTH to set which edge call the interrupt on. Also
+    // possible to get the output state in the intterupt to determine the edge.
+    acInterruptInit(&AC0, AC_MUXPOS_PIN0_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_10mV_gc,
+                    AC_INTMODE_BOTHEDGE_gc, true);
+    acInterruptInit(&AC1, AC_MUXPOS_PIN1_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_10mV_gc,
+                    AC_INTMODE_BOTHEDGE_gc, true);
 
     // Turn on the IR LEDs
     PIN_HIGH(IR_LED);
 
     // Enable global interrupts. Required call to use any interrupts.
     sei();
+}
+
+void incrementCount() {
+    if (count >= 0xFFFF) {
+        count = 0;
+    } else {
+        count++;
+    }
+}
+
+void decrementCount() {
+    if (count > 0) {
+        count--;
+    }
 }
 
 // Type A timer interrupt for digit MUX step
@@ -140,26 +139,37 @@ ISR(TCA0_OVF_vect) {
 ISR(AC0_AC_vect) {
     // Must clear interrupt flag manually
     AC0.STATUS = AC_CMP_bm;
+
+    if (getAcOutState(&AC0)) {
+        // Comparator HIGH -> IR detected (OUT LED off)
+        incrementCount();
+        setDigitBufferInt(count, digitBuffer);
+    } else {
+        // Comparator HIGH -> IR blocked (OUT LED on)
+    }
 }
 
 ISR(AC1_AC_vect) {
     // Must clear interrupt flag manually
     AC1.STATUS = AC_CMP_bm;
+
+    if (getAcOutState(&AC1)) {
+        // Comparator HIGH -> IR detected (OUT LED off)
+        decrementCount();
+        setDigitBufferInt(count, digitBuffer);
+    } else {
+        // Comparator HIGH -> IR blocked (OUT LED on)
+    }
 }
 
 void loop() {
-    static uint16_t count;
-    setDigitBufferInt(count, digitBuffer);
-    if (count >= 0xFFFF) {
-        count = 0;
-    } else {
-        count++;
-    }
+    // setDigitBufferInt(count, digitBuffer);
+    // incrementCount();
 
     // This blocks and thus slows down the MCU. Useful for debugging.
     // Eventually the MCU should run as fast as possible so make sure no
     // blocking delays remain.
-    _delay_ms(10);
+    // _delay_ms(10);
 }
 
 int main() {
