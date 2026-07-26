@@ -36,9 +36,9 @@ void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins) {
     // Drive the digit lines according to value
     for (uint8_t i = 0; i < nPins; i++) {
         if ((mask >> i) & 1) {
-            PIN_HIGH(pins[i]);
+            pinHigh(pins[i]);
         } else {
-            PIN_LOW(pins[i]);
+            pinLow(pins[i]);
         }
     }
 };

@@ -16,9 +16,9 @@ typedef struct {
     uint8_t pin;
 } Pin;
 
-static inline void PIN_HIGH(Pin p) { p.port->OUTSET = (1 << p.pin); }
-static inline void PIN_LOW(Pin p) { p.port->OUTCLR = (1 << p.pin); }
-static inline void PIN_TOGGLE(Pin p) { p.port->OUTTGL = (uint8_t)(1u << p.pin); }
+static inline void pinHigh(Pin p) { p.port->OUTSET = (1 << p.pin); }
+static inline void pinLow(Pin p) { p.port->OUTCLR = (1 << p.pin); }
+static inline void pinToggle(Pin p) { p.port->OUTTGL = (uint8_t)(1u << p.pin); }
 
 // Define pins as assigned on the board
 // Note that the GRN/YEL LED pins are also used as the AC output indicators so

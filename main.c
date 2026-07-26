@@ -3,13 +3,14 @@
 #include <avr/io.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <util/delay.h>
 
 #define MUX_STEP_PERIOD 1
 
 // Buffer to store 7 segment LED masks for what is currently on the display.
 // Pass this to the multiplexing functions which flashes one digit at a time.
-uint8_t digitBuffer[N_DIGS];
+uint8_t digit_buffer[N_DIGS];
 
 // Device Mode
 // This is the state of the device wrt the top-level state machine.
@@ -17,47 +18,29 @@ uint8_t digitBuffer[N_DIGS];
 // 1 - COUNTING
 // 2 - RESET
 // 3 - SETTINGS MENU
-uint8_t deviceMode = 0;
-
-// Return Mode stores the state number of the mode that a given mode "exits"
-// to. This is useful when going to mode 3 because we should always return from
-// the Settings Menu into the mode that we entered from
-uint8_t returnMode;
-
-// Counting Mode
-// 0: Inventory Mode
-// In Inventory Mode, we use only one IR interruptor. This is
-// faster because we only need to read one ADC and the decision-making
-// is simpler. Also, because it's direction agnostic, it correctly
-// handles end/start of tape.
-// 1: Dispense Mode
-// In Dispense Mode we use both IR interruptors to create an encoder
-// with the carrier tape. This allows us to determine the direction
-// of the tape at the expense of counting more slowly. Also, because
-// end/start of tape transitions look identical to motion in the
-// opposite direction, we can't correctly count end/start of tape.
-bool countingMode = 0;
-
-// Pitch of the parts on the carrier tape in mm
-uint8_t pitch = 4;
+uint8_t state = 0;
 
 // Ratio of holes in the carrier tape to actual parts, calculated based on the
 // pitch
-float ratio = 1.0;
-
-// Variable to store a value to be displayed on the 7-seg using the
-// translateSegments() method
-int displayBuf = 0;
+float part_to_hole_ratio = 1.0;
 
 // Count is a place to store the parts count, especially when the display is
 // showing something different
-int count = 0;
+int hole_count = 0;
+int part_count = 0;
 
 // numPos is used to store the individual digits of a number in order of their
 // decimal place. This is the output buffer of the numPositions() method. It's
 // global to avoid passing memory pointers around and inevitably creating a
 // hard to diagnose bug.
-uint8_t numPos[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+uint8_t num_pos[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+// State of the analog comparators. 0th/1st bit indicate 0th/1st sensor state
+// (HIGH or LOW). By checking the current and last state it is possible to
+// deduce the direction the tape moved as the pattern has at least three
+// elements and no mirror symmetry.
+uint8_t ac_state_prev = 0b00;
+uint8_t ac_state_curr = 0b00;
 
 void setup() {
     // Use MCLKCTRLB to disable the clock divider to get a 20 MHz clock
@@ -71,7 +54,7 @@ void setup() {
     // Blank display (all digits off)
     blankDisplay();
     // Clear the digit buffer
-    clearDigitBuffer(digitBuffer);
+    clearDigitBuffer(digit_buffer);
 
     // Setup type A timer to call interrupt at 1/MUX_STEP_PERIOD Hz
     tcaInterruptInit(&TCA0, TCA_SINGLE_CLKSEL_DIV1024_gc, F_CPU / 1024 * MUX_STEP_PERIOD / 1000);
@@ -91,30 +74,16 @@ void setup() {
     // AC0 -> PA7 (IRDETB)
     // Can set POS/NEG/BOTH to set which edge call the interrupt on. Also
     // possible to get the output state in the intterupt to determine the edge.
-    acInterruptInit(&AC0, AC_MUXPOS_PIN0_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_10mV_gc,
+    acInterruptInit(&AC0, AC_MUXPOS_PIN0_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_50mV_gc,
                     AC_INTMODE_BOTHEDGE_gc, true);
-    acInterruptInit(&AC1, AC_MUXPOS_PIN1_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_10mV_gc,
+    acInterruptInit(&AC1, AC_MUXPOS_PIN1_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_50mV_gc,
                     AC_INTMODE_BOTHEDGE_gc, true);
 
     // Turn on the IR LEDs
-    PIN_HIGH(IR_LED);
+    pinHigh(IR_LED);
 
     // Enable global interrupts. Required call to use any interrupts.
     sei();
-}
-
-void incrementCount() {
-    if (count >= 0xFFFF) {
-        count = 0;
-    } else {
-        count++;
-    }
-}
-
-void decrementCount() {
-    if (count > 0) {
-        count--;
-    }
 }
 
 // Type A timer interrupt for digit MUX step
@@ -126,7 +95,7 @@ ISR(TCA0_OVF_vect) {
     // every other call and blank every other time. The ratio between the two
     // counts then defines a duty cycle.
 
-    digitsMuxNext(digitBuffer);
+    digitsMuxNext(digit_buffer);
 }
 
 // Example: Type B timer interrupt
@@ -135,6 +104,44 @@ ISR(TCA0_OVF_vect) {
 //     TCB0.INTFLAGS = TCB_CAPT_bm;
 // }
 
+// Handler called on AC state change. This function does the actual counting.
+void acStateChangedHandler() {
+    // This should only be called when the state actually changes. Check just
+    // in case and perhaps indicate some sort of error to the user if the state
+    // did not change (TODO).
+    if (ac_state_curr != ac_state_prev) {
+        // State transitions are
+        // 0b00 0b01 0b11 0b10
+        // where
+        // left to right -> tape moving up
+        // right to left -> tape moving down
+        // Due to the sensor placement/hole pitch the 0b00 state is virtually
+        // non-existent (at least in theory). We further only require three
+        // states to deduce the direction so treat the 0b00 and 0b01 as the
+        // same state. 0b11 on the other hand should be the longest state so
+        // use that one as the condition for counting.
+        if (ac_state_prev == 0b11) {
+            switch (ac_state_curr) {
+            case 0b01:
+                hole_count++;
+                break;
+            case 0b10:
+                hole_count--;
+                break;
+            }
+        }
+
+        // Do the state update only if the state really changed (otherwise a
+        // glitch could result in an invalid curr/prev state combination.
+        ac_state_prev = ac_state_curr;
+
+        // Update part count derived from hole count
+        part_count = abs(hole_count) * part_to_hole_ratio;
+        // Display the new count
+        setDigitBufferInt(part_count, digit_buffer);
+    }
+}
+
 // AC Interrupts for hole detection
 ISR(AC0_AC_vect) {
     // Must clear interrupt flag manually
@@ -142,11 +149,18 @@ ISR(AC0_AC_vect) {
 
     if (getAcOutState(&AC0)) {
         // Comparator HIGH -> IR detected (OUT LED off)
-        incrementCount();
-        setDigitBufferInt(count, digitBuffer);
+
+        // Indicate AC0 state high
+        ac_state_curr |= 0b01;
     } else {
         // Comparator HIGH -> IR blocked (OUT LED on)
+
+        // Indicate AC0 state low
+        ac_state_curr &= ~0b01;
     }
+
+    // Handle AC state changed
+    acStateChangedHandler();
 }
 
 ISR(AC1_AC_vect) {
@@ -155,17 +169,21 @@ ISR(AC1_AC_vect) {
 
     if (getAcOutState(&AC1)) {
         // Comparator HIGH -> IR detected (OUT LED off)
-        decrementCount();
-        setDigitBufferInt(count, digitBuffer);
+
+        // Indicate AC1 state high
+        ac_state_curr |= 0b10;
     } else {
         // Comparator HIGH -> IR blocked (OUT LED on)
+
+        // Indicate AC1 state low
+        ac_state_curr &= ~0b10;
     }
+
+    // Handle AC state changed
+    acStateChangedHandler();
 }
 
 void loop() {
-    // setDigitBufferInt(count, digitBuffer);
-    // incrementCount();
-
     // This blocks and thus slows down the MCU. Useful for debugging.
     // Eventually the MCU should run as fast as possible so make sure no
     // blocking delays remain.
