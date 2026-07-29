@@ -40,8 +40,8 @@ uint8_t num_pos[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 // (HIGH or LOW). By checking the current and last state it is possible to
 // deduce the direction the tape moved as the pattern has at least three
 // elements and no mirror symmetry.
-uint8_t ac_state_prev = 0b00;
-uint8_t ac_state_curr = 0b00;
+uint8_t ac_state_prev = 0b11;
+uint8_t ac_state_curr = 0b11;
 
 void setup() {
     // Use MCLKCTRLB to disable the clock divider to get a 20 MHz clock
@@ -122,12 +122,34 @@ void acStateChangedHandler() {
         // glitch could result in an invalid curr/prev state combination.
         ac_state_prev = ac_state_curr;
 
-        // Update hole count (three state transitions per hole)
-        hole_count = state_trans_count / 3;
+        // Update hole count (three state transitions per hole) Always
+        // undercounting by one hole as we need at least two holes not
+        // detect a transition.
+        // TODO: Not sure how to deal with this yet. Perhaps we cannot get
+        // around detecting the start/end of tape conditions? If we could
+        // detect those reliably, I guess one could just add 1 to the hole
+        // count to correct it? Maybe, do the +1 after start pattern and end
+        // pattern detected each once (condition for tape completely passed the
+        // device).
+        // Another option might be to adjust hardware to actually never
+        // give the 0b11 state except when there is not tape inserted. If
+        // possible, this might be the most elegant solution...
+        // +1 to the transitions count here (together with init values for
+        // curr/prev state) makes it such that we count the same number for
+        // both directions (up/down).
+        hole_count = (abs(state_trans_count) + 1) / 3;
         // Update part count derived from hole count
-        part_count = abs(hole_count) * part_to_hole_ratio;
+        part_count = hole_count * part_to_hole_ratio;
         // Display the new count
-        setDigitBufferInt(part_count, digit_buffer);
+        setDigitBufferInt(abs(hole_count), digit_buffer);
+    } else {
+        // State is 0b11. Could use for start/end of tape detection?
+        // At start we get
+        // 0b11 0b01 b011 0b01
+        // or
+        // 0b11 0b10 b011 0b10
+        // depending on whether the tape end is currently at the top or
+        // bottom of the device.
     }
 }
 
