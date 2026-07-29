@@ -26,6 +26,7 @@ float part_to_hole_ratio = 1.0;
 
 // Count is a place to store the parts count, especially when the display is
 // showing something different
+int state_trans_count = 0;
 int hole_count = 0;
 int part_count = 0;
 
@@ -62,11 +63,11 @@ void setup() {
     // Example: Setup type B timer to call interrupt
     // tcbInterruptInit(&TCB0, TCB_CLKSEL_CLKDIV1_gc, 1000);
 
-    setupDacVref(VREF_DAC0REFSEL_1V5_gc, VREF_DAC1REFSEL_1V5_gc);
+    setupDacVref(VREF_DAC0REFSEL_1V5_gc, VREF_DAC1REFSEL_0V55_gc);
 
     // Set reference voltages
-    setDacRef(&DAC0, 100);
-    setDacRef(&DAC1, 100);
+    setDacRef(&DAC0, 30);
+    setDacRef(&DAC1, 30);
 
     // Setup ACs and enable interrupts. Also enables AC output mapping to
     // package pin.
@@ -106,35 +107,23 @@ ISR(TCA0_OVF_vect) {
 
 // Handler called on AC state change. This function does the actual counting.
 void acStateChangedHandler() {
-    // This should only be called when the state actually changes. Check just
-    // in case and perhaps indicate some sort of error to the user if the state
-    // did not change (TODO).
-    if (ac_state_curr != ac_state_prev) {
-        // State transitions are
-        // 0b00 0b01 0b11 0b10
-        // where
-        // left to right -> tape moving up
-        // right to left -> tape moving down
-        // Due to the sensor placement/hole pitch the 0b00 state is virtually
-        // non-existent (at least in theory). We further only require three
-        // states to deduce the direction so treat the 0b00 and 0b01 as the
-        // same state. 0b11 on the other hand should be the longest state so
-        // use that one as the condition for counting.
-        if (ac_state_prev == 0b11) {
-            switch (ac_state_curr) {
-            case 0b01:
-                hole_count++;
-                break;
-            case 0b10:
-                hole_count--;
-                break;
-            }
+    // Ignore state 0b11 as this is the shortest state and we only require
+    // three to figure out the direction.
+    if ((ac_state_curr != 0b11) && (ac_state_curr != ac_state_prev)) {
+        if (ac_state_curr == ((ac_state_prev + 1) % 3)) {
+            state_trans_count++;
+        } else if (((ac_state_curr + 1) % 3) == ac_state_prev) {
+            state_trans_count--;
+        } else {
+            // TODO: Error state? But really really should never happen I guess...
         }
 
         // Do the state update only if the state really changed (otherwise a
         // glitch could result in an invalid curr/prev state combination.
         ac_state_prev = ac_state_curr;
 
+        // Update hole count (three state transitions per hole)
+        hole_count = state_trans_count / 3;
         // Update part count derived from hole count
         part_count = abs(hole_count) * part_to_hole_ratio;
         // Display the new count

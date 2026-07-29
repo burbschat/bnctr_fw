@@ -60,6 +60,21 @@ static const uint8_t DIG_MASK_LUT[10] = {
     0b01101011, 0b01111011, 0b00100101, 0b01111111, 0b01101111,
 };
 
+// State transitions are
+// 0b00 0b01 0b11 0b10
+// 0b00 means both blocked, 0b11 means both open.
+// Thus (TODO: Check)
+// left to right -> tape moving up
+// right to left -> tape moving down
+// Due to the sensor placement/hole pitch the 0b11 (both open) state is the
+// shortest but still easily detectable.
+// Three states would suffice to detect the direction but we can also use all
+// four, but three is simpler I guess.
+// Using three states also has the nice side effect of the state bit masks
+// representing their index in the state sequence! So we don't need the
+// sequence in a variable at all!
+// static const uint8_t STATE_SEQ[4] = { 0b00, 0b01, 0b11, 0b10 };
+
 // Firmware specific setup (pins, reference voltages, ...)
 void setupPins();
 void setupDacVref(VREF_DAC0REFSEL_t ref1, VREF_DAC1REFSEL_t ref2);
