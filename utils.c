@@ -110,7 +110,7 @@ void tcaInterruptInit(TCA_t *timer, TCA_SINGLE_CLKSEL_t clksel, register16_t cou
     timer->SINGLE.INTCTRL = TCA_SINGLE_OVF_bm;
 
     // Enable timer with prescaler /1024
-    timer->SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV1024_gc | TCA_SINGLE_ENABLE_bm;
+    timer->SINGLE.CTRLA = clksel | TCA_SINGLE_ENABLE_bm;
 }
 
 // Initialize B type timer for periodic interrupt.
