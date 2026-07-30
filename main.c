@@ -194,6 +194,21 @@ ISR(AC1_AC_vect) {
     acStateChangedHandler();
 }
 
+ISR(PORTB_PORT_vect) {
+    // Must clear interrupt flag manually
+    uint8_t portBFlags = PORTB.INTFLAGS;
+    PORTB.INTFLAGS = portBFlags;
+
+    if (portBFlags & PIN4_bm) {
+        // Upper button pressed
+        setDigitBufferInt(111, digit_buffer);
+    }
+    if (portBFlags & PIN5_bm) {
+        // Lower button pressed
+        setDigitBufferInt(222, digit_buffer);
+    }
+}
+
 void loop() {
     // This blocks and thus slows down the MCU. Useful for debugging.
     // Eventually the MCU should run as fast as possible so make sure no

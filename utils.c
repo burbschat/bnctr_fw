@@ -6,7 +6,7 @@
 void setupPins() {
     // Set pin modes
     PORTA.DIR |= 0b00111110; // 7, 6 are IR det inputs, 0 is UPDI
-    PORTB.DIR |= 0b001111;   // 4, 5 are switch inputs
+    PORTB.DIR |= 0b001111;   // 4, 5 are button inputs
     PORTC.DIR |= 0b1111;     // All outputs
 
     // Initialize all output pins to low
@@ -18,6 +18,11 @@ void setupPins() {
     // impedance.
     PORTA.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;
     PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;
+
+    // Enable internal pullup and interrupts on falling edge (pull low) for the
+    // button inputs
+    PORTB.PIN4CTRL = PORT_PULLUPEN_bm | PORT_ISC_FALLING_gc;
+    PORTB.PIN5CTRL = PORT_PULLUPEN_bm | PORT_ISC_FALLING_gc;
 }
 
 // Setup DAC for AC vref as required in this firmware

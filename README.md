@@ -59,6 +59,7 @@ command).
 
 ## References
 * General and programming: https://michael-crum.com/attiny1616/
+* Interrupts: https://www.ojisanseiuchi.com/2024/03/03/a-quick-word-on-attiny-1-series-interrupts/
 * A type timers: https://www.microchip.com/en-us/application-notes/tb3217
 * B type timers: https://www.microchip.com/en-us/application-notes/tb3214
 * Analog comparator (AC): https://www.microchip.com/en-us/application-notes/tb3211
