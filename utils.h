@@ -3,12 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// This is the amount of dead time where we allow a digit to be on before
-// moving on to the next. Ideally, we would never busy-wait like this. We're
-// already polling the IR sensors in the downtime during count mode. This is
-// just used to increase subjective display brightness in modes where nothing
-// needs to be done between segment updates
-#define SCAN_DELAY = 500;
+#define MUX_STEP_PERIOD_MS 1
+#define BUTTON_LONGPRESS_TIMEOUT_MS 500
 
 // Define type to completely describe a pin (port and pin number)
 typedef struct {
@@ -75,6 +71,23 @@ static const uint8_t DIG_MASK_LUT[10] = {
 // sequence in a variable at all!
 // static const uint8_t STATE_SEQ[4] = { 0b00, 0b01, 0b11, 0b10 };
 
+typedef enum {
+    COUNT,
+    HPP_INPUT,
+} uiState;
+
+// Buttons pull low when pressed so invert the register values
+
+#define BUTTON_UPPER_PRESSED (!(PORTB.IN & PIN4_bm))
+#define BUTTON_LOWER_PRESSED (!(PORTB.IN & PIN5_bm))
+#define BUTTON_UPPER_bm 0b01
+#define BUTTON_LOWER_bm 0b10
+#define BUTTON_STATE                                                                               \
+    ((BUTTON_UPPER_PRESSED * BUTTON_UPPER_bm) | (BUTTON_LOWER_PRESSED * BUTTON_LOWER_bm))
+
+#define BUTTON_UPPER_INTFLAG (PORTB.INTFLAGS & PIN4_bm)
+#define BUTTON_LOWER_INTFLAG (PORTB.INTFLAGS & PIN4_bm)
+
 // Firmware specific setup (pins, reference voltages, ...)
 void setupPins();
 void setupDacVref(VREF_DAC0REFSEL_t ref1, VREF_DAC1REFSEL_t ref2);
@@ -84,6 +97,7 @@ void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins);
 void blankDisplay();
 void clearDigitBuffer(uint8_t *buffer);
 void setDigitBufferInt(uint16_t val, uint8_t *buffer);
+void setDigitBufferIntMasked(uint16_t val, uint8_t digit_mask, uint8_t *buffer);
 void displayDigit(uint8_t mask, uint8_t dig);
 void digitsMuxNext(uint8_t *segMasks);
 

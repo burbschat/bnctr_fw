@@ -19,10 +19,10 @@ void setupPins() {
     PORTA.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;
     PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;
 
-    // Enable internal pullup and interrupts on falling edge (pull low) for the
-    // button inputs
-    PORTB.PIN4CTRL = PORT_PULLUPEN_bm | PORT_ISC_FALLING_gc;
-    PORTB.PIN5CTRL = PORT_PULLUPEN_bm | PORT_ISC_FALLING_gc;
+    // Enable internal pullup (button on pulls low) and interrupts on both edge
+    // for the button inputs
+    PORTB.PIN4CTRL = PORT_PULLUPEN_bm | PORT_ISC_BOTHEDGES_gc;
+    PORTB.PIN5CTRL = PORT_PULLUPEN_bm | PORT_ISC_BOTHEDGES_gc;
 }
 
 // Setup DAC for AC vref as required in this firmware
@@ -60,12 +60,22 @@ void clearDigitBuffer(uint8_t *buffer) {
 }
 
 // Only have three digits so 16 bits suffices but 8 would be insufficient
-void setDigitBufferInt(uint16_t val, uint8_t *buffer) {
+void setDigitBufferIntMasked(uint16_t val, uint8_t digit_mask, uint8_t *buffer) {
     uint32_t tempVal = val;
     for (uint8_t i = 0; i < N_DIGS; i++) {
-        buffer[N_DIGS - i - 1] = DIG_MASK_LUT[tempVal % 10];
-        tempVal /= 10;
+        if (digit_mask & (1 << i)) {
+            // Set digit if enabled in mask
+            buffer[N_DIGS - i - 1] = DIG_MASK_LUT[tempVal % 10];
+            tempVal /= 10;
+        } else {
+            // Blank the digit if disabled in mask
+            buffer[N_DIGS - i - 1] = 0;
+        }
     }
+}
+
+void setDigitBufferInt(uint16_t val, uint8_t *buffer) {
+    setDigitBufferIntMasked(val, (1 << N_DIGS) - 1, buffer);
 }
 
 // Drive given digit using passed mask
@@ -91,9 +101,13 @@ void digitsMuxNext(uint8_t *segMasks) {
     step = step % N_DIGS;
 }
 
-// Initialize B type timer for periodic interrupt.
+// Initialize A type timer for periodic interrupt.
 // Can use a divider of up to 1024 and thus suitable for periods also on the
 // order of seconds.
+// Must be enabled by user after the setup by setting
+// TCA<number>.SINGLE.CTRLA |= TCA_SINGLE_ENABLE_bm;
+// Can be disabled again with (for a oneshot operation, disable in interrupt)
+// TCA<number>.SINGLE.CTRLA &= ~TCA_SINGLE_ENABLE_bm;
 void tcaInterruptInit(TCA_t *timer, TCA_SINGLE_CLKSEL_t clksel, register16_t count) {
     // Disable TCA before configuration
     timer->SINGLE.CTRLA = 0;
@@ -109,13 +123,17 @@ void tcaInterruptInit(TCA_t *timer, TCA_SINGLE_CLKSEL_t clksel, register16_t cou
     // Enable overflow interrupt
     timer->SINGLE.INTCTRL = TCA_SINGLE_OVF_bm;
 
-    // Enable timer with prescaler /1024
-    timer->SINGLE.CTRLA = clksel | TCA_SINGLE_ENABLE_bm;
+    // Set prescaler 1/clksel
+    timer->SINGLE.CTRLA = clksel;
 }
 
 // Initialize B type timer for periodic interrupt.
 // Maximum divider is 2 so this timer type is not the best choice for 'slow'
 // periods on the order of say ms as the count register only has 16 bits.
+// Must be enabled by user after the setup by setting
+// TCB<number>.CTRLA |= TCB_ENABLE_bm;
+// Can be disabled again with (for a oneshot operation, disable in interrupt)
+// TCB<number>.CTRLA &= ~TCB_ENABLE_bm;
 void tcbInterruptInit(TCB_t *timer, TCB_CLKSEL_t clksel, register16_t count) {
     // Disable timer before configuration
     timer->CTRLA = 0;
@@ -133,8 +151,8 @@ void tcbInterruptInit(TCB_t *timer, TCB_CLKSEL_t clksel, register16_t count) {
     // Enable interrupt on capture
     timer->INTCTRL = TCB_CAPT_bm;
 
-    // Enable timer, set timer clock
-    timer->CTRLA = clksel | TCB_ENABLE_bm;
+    // Set prescaler 1/clksel
+    timer->CTRLA = clksel;
 }
 
 void setDacRef(DAC_t *dac, register8_t val) {
