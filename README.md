@@ -1,6 +1,16 @@
 # BNCTR FW
 Firmware for my version of the [BeanCounter](https://github.com/NPoole/BeanCounter).
-This is a port of the original firmware by Nick Poole.
+This is a ~port~ rewrite (*work in progress!*) of the original firmware by Nick
+Poole. Not compatible with the original BeanCounter hardware, but rather my own
+version of it (which steals all the good ideas from the original).
+
+The original firmware had to use polling due to limitations of the used MCU but
+this version can rely on interrupts thanks to the analog comparators of the
+ATTiny1616. Thus, this firmware (together with the updated hardware) is
+potentially more capable than the original.
+
+Also, this firmware is *not* an Arduino sketch but rather written in plain C
+and build using the vendor (AVR) provided toolchain.
 
 ## Toolchain Setup
 ### Arch Linux
