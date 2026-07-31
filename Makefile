@@ -3,8 +3,27 @@ PORT = /dev/ttyUSB0
 DEVICE = attiny1616
 PROGRAMMER = serialupdi
 
+# ------------------------------------------------------------------------------
+# Preprocessor-values-passed-to-firmware
+
 # Clock speed must be provided for delays to be timed properly 
 F_CPU = 20000000
+# Could reduce the CPU clock speed but it appeared that with 20 MHz it is
+# almost impossible to skip a count but at 10 MHz pulling the tape rapidly can
+# cause skipped counts.
+# Also, dividing down the clock does not seem to significantly reduce power
+# consumption at all, so 20 MHz is probably fine.
+# PDIV = CLKCTRL_PDIV_16X_gc
+# F_CPU = 1250000
+
+# Time in ms to wait before illuminating the next digit
+MUX_STEP_PERIOD_MS = 1
+# Duty cycle divider for digit illumination (duty = 1/MUX_DUTY_DIV).
+# This is a per-digit duty cycle as the digits are flashed one at a time.
+MUX_DUTY_DIV = 4
+# Duration in ms for a long button press event
+BUTTON_LONGPRESS_TIMEOUT_MS = 500
+# ------------------------------------------------------------------------------
 
 # Baud rate for programming
 BAUD = 115200
@@ -19,10 +38,18 @@ OBJS_DEBUG := $(SRCS:.c=_debug.o)
 # - All warnings (-Wall)
 # - Optimized for size (-0s)
 # - Targeted to our mcu (-mmcu)
-# - F_CPU defined as our clock speed (-DF_CPU)
+# - Values for preprocessor (-D*)
 # - Create dependency .d files for header files (-MMD -MP)
 CC = avr-gcc 
-CFLAGS = -Wall -Os -mmcu=$(DEVICE) -DF_CPU=$(F_CPU) -MMD -MP
+CFLAGS = -Wall -Os \
+		-mmcu=$(DEVICE) \
+		-DF_CPU=$(F_CPU) \
+		-DPDIV=$(if $(PDIV),$(PDIV),0) \
+		-DMUX_STEP_PERIOD_MS=$(MUX_STEP_PERIOD_MS) \
+		-DMUX_DUTY_DIV=$(MUX_DUTY_DIV) \
+		-DBUTTON_LONGPRESS_TIMEOUT_MS=$(BUTTON_LONGPRESS_TIMEOUT_MS) \
+		-MMD \
+		-MP
 # Extra flags for debug build:
 # - Include debug symbols (-g)
 # - No optimization (-O0, last one wins so -Os ignored)
@@ -31,7 +58,8 @@ CFLAGS_DEBUG = $(CFLAGS) -g -O0
 default: main.hex
 
 # Compile single source file
-%.o: %.c
+# Makefile is a dependency as well as it provides some preprocessor values
+%.o: %.c Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compile single source file with debug flags

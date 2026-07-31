@@ -3,8 +3,21 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// Time in ms to wait before illuminating the next digit
+#ifndef MUX_STEP_PERIOD_MS
 #define MUX_STEP_PERIOD_MS 1
+#endif
+
+// Duty cycle divider for digit illumination (duty = 1/MUX_DUTY_DIV).
+// This is a per-digit duty cycle as the digits are flashed one at a time.
+#ifndef MUX_DUTY_DIV
+#define MUX_DUTY_DIV 1
+#endif
+
+// Duration in ms for a long button press event
+#ifndef BUTTON_LONGPRESS_TIMEOUT_MS
 #define BUTTON_LONGPRESS_TIMEOUT_MS 500
+#endif
 
 // Define type to completely describe a pin (port and pin number)
 typedef struct {
@@ -23,7 +36,7 @@ static inline void pinToggle(Pin p) { p.port->OUTTGL = (uint8_t)(1u << p.pin); }
 #define GRN_LED ((Pin){ &PORTA, 5 })
 #define IR_LED ((Pin){ &PORTA, 4 })
 
-// Use arrays for pins that we might want to index. Consequently indecies start
+// Use arrays for pins that we might want to index. Consequently indices start
 // at 0, not as 1 (as for the schematic), but start at 0 is nicer for the code
 // so adopt that here.
 #define N_DIGS 3

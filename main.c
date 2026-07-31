@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include <avr/sleep.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -39,11 +40,14 @@ uint8_t ac_state_curr = 0b11;
 void (*longpress_callback)(void) = NULL;
 
 void setup() {
-    // Use MCLKCTRLB to disable the clock divider to get a 20 MHz clock
     // MCLKCTRLB is under CCP (configuration change protection), so we have to
     // write 0xD8 (CCP_IOREG_gc) to the CCP register before we change it.
     CCP = CCP_IOREG_gc;
+#if PDIV
+    CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm | PDIV;
+#else
     CLKCTRL.MCLKCTRLB &= ~CLKCTRL_PEN_bm;
+#endif
 
     setupPins();
 
@@ -52,16 +56,19 @@ void setup() {
     // Clear the digit buffer
     clearDigitBuffer(digit_buffer);
 
-    // Setup type A timer to call interrupt at 1/MUX_STEP_PERIOD_MS*1000 Hz
-    // tcaInterruptInit(&TCA0, TCA_SINGLE_CLKSEL_DIV1024_gc, F_CPU / 1024 *
-    // MUX_STEP_PERIOD_MS / 1000);
-    tcbInterruptInit(&TCB0, TCB_CLKSEL_CLKDIV2_gc, F_CPU / 2 * MUX_STEP_PERIOD_MS / 1000);
+    // Setup type A timer to call interrupt at 1/MUX_STEP_PERIOD_MS*1000 Hz but
+    // illuminate only every MUX_DUTY_DIV times so the timer time is
+    // adjusted for that to keep the step period fixed.
+    // tcaInterruptInit(&TCA0, TCA_SINGLE_CLKSEL_DIV1024_gc, F_CPU / 1024 * MUX_STEP_PERIOD_MS /
+    // MUX_DUTY_DIV / 1000);
+    tcbInterruptInit(&TCB0, TCB_CLKSEL_CLKDIV2_gc,
+                     F_CPU / 2 * MUX_STEP_PERIOD_MS / MUX_DUTY_DIV / 1000);
     // Enable the timer immediately
     TCB0.CTRLA |= TCB_ENABLE_bm;
 
     // Setup type B timer for button long press timeout.
-    // tcbInterruptInit(&TCB0, TCB_CLKSEL_CLKDIV2_gc, F_CPU / 2 * BUTTON_LONGPRESS_TIMEOUT_MS / 1000);
-    tcaInterruptInit(&TCA0, TCA_SINGLE_CLKSEL_DIV1024_gc, F_CPU / 1024 * BUTTON_LONGPRESS_TIMEOUT_MS / 1000);
+    tcaInterruptInit(&TCA0, TCA_SINGLE_CLKSEL_DIV1024_gc,
+                     F_CPU / 1024 * BUTTON_LONGPRESS_TIMEOUT_MS / 1000);
 
     setupDacVref(VREF_DAC0REFSEL_1V5_gc, VREF_DAC1REFSEL_0V55_gc);
 
@@ -92,11 +99,22 @@ ISR(TCB0_INT_vect) {
     // Must clear interrupt flag manually
     TCB0.INTFLAGS = TCB_CAPT_bm;
 
-    // TODO: Implement dimming by setting SINGLE.PER to one or another value
-    // every other call and blank every other time. The ratio between the two
-    // counts then defines a duty cycle.
+    // Note: Could implement dimming by setting SINGLE.PER to one or another
+    // value every other call and blank every other time. The ratio between the
+    // two counts then defines a duty cycle.
 
-    digitsMuxNext(digit_buffer);
+    // Illumination duty cycle set with an integer divider (fraction). Turn the
+    // display only on every MUX_DUTY_DIVth cycle. For exsample if MUX_DUTY_DIV
+    // = 4, every 4th MUX_STEP_PERIOD_MS/4 long cycle will illuminate a given
+    // digit.
+    static uint8_t updated_count = 0;
+    if (updated_count % MUX_DUTY_DIV == 0) {
+        digitsMuxNext(digit_buffer);
+        updated_count = 0;
+    } else {
+        blankDisplay();
+    }
+    updated_count++;
 }
 
 // Update hole count (three state transitions per hole) Always undercounting by
@@ -305,17 +323,18 @@ ISR(PORTB_PORT_vect) {
     buttonsStateChangedHandler();
 }
 
-void loop() {
-    // This blocks and thus slows down the MCU. Useful for debugging.
-    // Eventually the MCU should run as fast as possible so make sure no
-    // blocking delays remain.
-    // _delay_ms(10);
-}
-
 int main() {
     setup();
+
+    // Choose either of: SLEEP_MODE_IDLE, SLEEP_MODE_STANDBY, SLEEP_MODE_PWR_DOWN
+    // The latter two stop the clock so timers won't work.
+    // PIT/RTC should still work so consider using those for the interrupts.
+    set_sleep_mode(SLEEP_MODE_IDLE);
+
+    // As the firmware is completely interrupt based, we can have the CPU wait
+    // in a lower power mode until an interrupt occurs.
     while (1) {
-        loop();
+        sleep_mode();
     }
     return 0;
 }
