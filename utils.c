@@ -89,6 +89,16 @@ void displayDigit(uint8_t segMask, uint8_t dig) {
     driveMask(~(1 << dig), DIGS, N_DIGS);
 };
 
+// Display HPP value, two digits, prepended by a P for 'pitch'
+void displayHPPValue(uint16_t val, uint8_t *buffer) {
+    // Set lower two digits to display the value
+    // (Yes, the set first digit could be skipped completely but this is good
+    // enough for now...)
+    setDigitBufferIntMasked(val, 0b011, buffer);
+    // Prepend with the letter P
+    buffer[0] = MASK_FOR_CHAR('p');
+}
+
 // Execute one step of the digit multiplexing.
 // Sets the segments and MOSFET accordingly. This should be called
 // periodically. Three calls are required to step through all three digits.

@@ -68,6 +68,38 @@ static const uint8_t DIG_MASK_LUT[10] = {
     0b01110111, 0b00100100, 0b01011101, 0b01101101, 0b00101110,
     0b01101011, 0b01111011, 0b00100101, 0b01111111, 0b01101111,
 };
+// Lookup table for best-effort letters on the 7 segment display
+static const uint8_t LETTER_MASK_LUT[26] = {
+    /* A */ 0b00111111, // A
+    /* B */ 0b01111010, // b
+    /* C */ 0b01010011, // C
+    /* D */ 0b01111100, // d
+    /* E */ 0b01011011, // E
+    /* F */ 0b00011011, // F
+    /* G */ 0b01101011, // G
+    /* H */ 0b00111110, // H
+    /* I */ 0b00110000, // I (looks like "I")
+    /* J */ 0b01100100, // J
+    /* K */ 0b00111110, // K (same as H, limited)
+    /* L */ 0b01010010, // L
+    /* M */ 0b00110111, // M (approx)
+    /* N */ 0b01110110, // n
+    /* O */ 0b01111111, // O (same as 0)
+    /* P */ 0b00011111, // P
+    /* Q */ 0b01101111, // q (approx)
+    /* R */ 0b00010111, // r
+    /* S */ 0b01101011, // S
+    /* T */ 0b01011010, // t
+    /* U */ 0b01110110, // U
+    /* V */ 0b01111100, // V (approx)
+    /* W */ 0b01111110, // W (approx)
+    /* X */ 0b00111110, // X (looks like H)
+    /* Y */ 0b01101110, // Y
+    /* Z */ 0b01011101, // Z (same as 2)
+};
+// Macro to get mask for a given character. Only works with lower case values
+// but that is fine as the display does mix upper/lower case anyways.
+#define MASK_FOR_CHAR(c) (LETTER_MASK_LUT[(c) - 'a'])
 
 // State transitions are
 // 0b00 0b01 0b11 0b10
@@ -112,6 +144,7 @@ void clearDigitBuffer(uint8_t *buffer);
 void setDigitBufferInt(uint16_t val, uint8_t *buffer);
 void setDigitBufferIntMasked(uint16_t val, uint8_t digit_mask, uint8_t *buffer);
 void displayDigit(uint8_t mask, uint8_t dig);
+void displayHPPValue(uint16_t val, uint8_t *buffer);
 void digitsMuxNext(uint8_t *segMasks);
 
 // Timers

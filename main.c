@@ -260,7 +260,7 @@ void updateHolesPerPart(int8_t delta) {
         holes_per_part = tmp;
     }
     // Display the current value
-    setDigitBufferIntMasked(holes_per_part, 0b011, digit_buffer);
+    displayHPPValue(holes_per_part, digit_buffer);
 }
 
 void buttonsStateChangedHandler() {
