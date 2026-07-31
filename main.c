@@ -41,9 +41,9 @@ void (*longpress_callback)(void) = NULL;
 void setup() {
     // Use MCLKCTRLB to disable the clock divider to get a 20 MHz clock
     // MCLKCTRLB is under CCP (configuration change protection), so we have to
-    // write 0xD8 to the CCP register before we change it.
-    CCP = 0xD8;
-    CLKCTRL_MCLKCTRLB &= ~(1);
+    // write 0xD8 (CCP_IOREG_gc) to the CCP register before we change it.
+    CCP = CCP_IOREG_gc;
+    CLKCTRL.MCLKCTRLB &= ~CLKCTRL_PEN_bm;
 
     setupPins();
 
