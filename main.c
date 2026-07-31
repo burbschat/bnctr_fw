@@ -27,12 +27,6 @@ int state_trans_count = 0;
 int hole_count = 0;
 int part_count = 0;
 
-// numPos is used to store the individual digits of a number in order of their
-// decimal place. This is the output buffer of the numPositions() method. It's
-// global to avoid passing memory pointers around and inevitably creating a
-// hard to diagnose bug.
-uint8_t num_pos[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
 // State of the analog comparators. 0th/1st bit indicate 0th/1st sensor state
 // (HIGH or LOW). By checking the current and last state it is possible to
 // deduce the direction the tape moved as the pattern has at least three
