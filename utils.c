@@ -60,13 +60,27 @@ void clearDigitBuffer(uint8_t *buffer) {
 }
 
 // Only have three digits so 16 bits suffices but 8 would be insufficient
-void setDigitBufferIntMasked(uint16_t val, uint8_t digit_mask, uint8_t *buffer) {
-    uint32_t tempVal = val;
+void setDigitBufferIntMasked(uint16_t val, uint8_t digit_mask, bool hide_leading_zeros,
+                             uint8_t *buffer) {
+    uint16_t temp_val = val;
+    uint16_t digit_val = val;
+
     for (uint8_t i = 0; i < N_DIGS; i++) {
         if (digit_mask & (1 << i)) {
-            // Set digit if enabled in mask
-            buffer[N_DIGS - i - 1] = DIG_MASK_LUT[tempVal % 10];
-            tempVal /= 10;
+            digit_val = temp_val % 10;
+            // Hide leading zeros if that is enabled and we are not on the
+            // first digit (avoid empty display if value is 0)
+            if (hide_leading_zeros && i > 0 && temp_val == 0) {
+                // If the value is zero all following digits would be 0. So if
+                // that is the case and leading zeros should be hidden, blank
+                // the digit.
+                buffer[N_DIGS - i - 1] = 0;
+            } else {
+                // Set digit if enabled in mask
+                buffer[N_DIGS - i - 1] = DIG_MASK_LUT[digit_val];
+            }
+            // Move on to next digit
+            temp_val /= 10;
         } else {
             // Blank the digit if disabled in mask
             buffer[N_DIGS - i - 1] = 0;
@@ -74,8 +88,8 @@ void setDigitBufferIntMasked(uint16_t val, uint8_t digit_mask, uint8_t *buffer) 
     }
 }
 
-void setDigitBufferInt(uint16_t val, uint8_t *buffer) {
-    setDigitBufferIntMasked(val, (1 << N_DIGS) - 1, buffer);
+void setDigitBufferInt(uint16_t val, bool hide_leading_zeros, uint8_t *buffer) {
+    setDigitBufferIntMasked(val, (1 << N_DIGS) - 1, hide_leading_zeros, buffer);
 }
 
 // Drive given digit using passed mask
@@ -94,7 +108,7 @@ void displayHPPValue(uint16_t val, uint8_t *buffer) {
     // Set lower two digits to display the value
     // (Yes, the set first digit could be skipped completely but this is good
     // enough for now...)
-    setDigitBufferIntMasked(val, 0b011, buffer);
+    setDigitBufferIntMasked(val, 0b011, HIDE_LEADING_ZEROS, buffer);
     // Prepend with the letter P
     buffer[0] = MASK_FOR_CHAR('p');
 }

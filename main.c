@@ -136,7 +136,7 @@ void updateHoleCount() {
     part_count = hole_count / holes_per_part;
     // Display the new count if in correct UI mode
     if (ui_state == COUNT) {
-        setDigitBufferInt(part_count, digit_buffer);
+        setDigitBufferInt(part_count, HIDE_LEADING_ZEROS, digit_buffer);
     }
 }
 

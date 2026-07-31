@@ -23,6 +23,9 @@ MUX_STEP_PERIOD_MS = 1
 MUX_DUTY_DIV = 4
 # Duration in ms for a long button press event
 BUTTON_LONGPRESS_TIMEOUT_MS = 500
+# Set wheter leading zeros on the display should be hidden to save power. Some
+# modes of the UI may deliberately ignore this to make them visually distinct.
+HIDE_LEADING_ZEROS = true
 # ------------------------------------------------------------------------------
 
 # Baud rate for programming
@@ -48,6 +51,7 @@ CFLAGS = -Wall -Os \
 		-DMUX_STEP_PERIOD_MS=$(MUX_STEP_PERIOD_MS) \
 		-DMUX_DUTY_DIV=$(MUX_DUTY_DIV) \
 		-DBUTTON_LONGPRESS_TIMEOUT_MS=$(BUTTON_LONGPRESS_TIMEOUT_MS) \
+		-DHIDE_LEADING_ZEROS=$(HIDE_LEADING_ZEROS) \
 		-MMD \
 		-MP
 # Extra flags for debug build:

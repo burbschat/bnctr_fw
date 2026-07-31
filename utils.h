@@ -19,6 +19,10 @@
 #define BUTTON_LONGPRESS_TIMEOUT_MS 500
 #endif
 
+#ifndef HIDE_LEADING_ZEROS
+#define HIDE_LEADING_ZEROS true
+#endif
+
 // Define type to completely describe a pin (port and pin number)
 typedef struct {
     PORT_t *port;
@@ -141,8 +145,9 @@ void setupDacVref(VREF_DAC0REFSEL_t ref1, VREF_DAC1REFSEL_t ref2);
 void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins);
 void blankDisplay();
 void clearDigitBuffer(uint8_t *buffer);
-void setDigitBufferInt(uint16_t val, uint8_t *buffer);
-void setDigitBufferIntMasked(uint16_t val, uint8_t digit_mask, uint8_t *buffer);
+void setDigitBufferInt(uint16_t val, bool hide_leading_zeros, uint8_t *buffer);
+void setDigitBufferIntMasked(uint16_t val, uint8_t digit_mask, bool hide_leading_zeros,
+                             uint8_t *buffer);
 void displayDigit(uint8_t mask, uint8_t dig);
 void displayHPPValue(uint16_t val, uint8_t *buffer);
 void digitsMuxNext(uint8_t *segMasks);
