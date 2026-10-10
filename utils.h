@@ -34,10 +34,6 @@ static inline void pinLow(Pin p) { p.port->OUTCLR = (1 << p.pin); }
 static inline void pinToggle(Pin p) { p.port->OUTTGL = (uint8_t)(1u << p.pin); }
 
 // Define pins as assigned on the board
-// Note that the GRN/YEL LED pins are also used as the AC output indicators so
-// they can either be set manually or automatically reflect the AC states.
-#define YEL_LED ((Pin){ &PORTB, 3 })
-#define GRN_LED ((Pin){ &PORTA, 5 })
 #define IR_LED ((Pin){ &PORTA, 4 })
 
 // Use arrays for pins that we might want to index. Consequently indices start
@@ -47,7 +43,7 @@ static inline void pinToggle(Pin p) { p.port->OUTTGL = (uint8_t)(1u << p.pin); }
 static const Pin DIGS[] = {
     { &PORTA, 2 },
     { &PORTA, 3 },
-    { &PORTA, 1 },
+    { &PORTA, 5 },
 };
 
 #define N_SEGS 7
@@ -128,18 +124,18 @@ typedef enum {
 // Buttons pull low when pressed so invert the register values
 
 #define BUTTON_UPPER_PRESSED (!(PORTB.IN & PIN4_bm))
-#define BUTTON_LOWER_PRESSED (!(PORTB.IN & PIN5_bm))
+#define BUTTON_LOWER_PRESSED (!(PORTB.IN & PIN3_bm))
 #define BUTTON_UPPER_bm 0b01
 #define BUTTON_LOWER_bm 0b10
 #define BUTTON_STATE                                                                               \
     ((BUTTON_UPPER_PRESSED * BUTTON_UPPER_bm) | (BUTTON_LOWER_PRESSED * BUTTON_LOWER_bm))
 
 #define BUTTON_UPPER_INTFLAG (PORTB.INTFLAGS & PIN4_bm)
-#define BUTTON_LOWER_INTFLAG (PORTB.INTFLAGS & PIN4_bm)
+#define BUTTON_LOWER_INTFLAG (PORTB.INTFLAGS & PIN3_bm)
 
 // Firmware specific setup (pins, reference voltages, ...)
 void setupPins();
-void setupDacVref(VREF_DAC0REFSEL_t ref1, VREF_DAC1REFSEL_t ref2);
+void setupDacVref(VREF_DAC0REFSEL_t ref0, VREF_DAC1REFSEL_t ref1, VREF_DAC2REFSEL_t ref2);
 
 // Digit display
 void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins);
@@ -159,5 +155,5 @@ void tcbInterruptInit(TCB_t *timer, TCB_CLKSEL_t clksel, uint16_t count);
 // AC
 void setDacRef(DAC_t *dac, register8_t val);
 void acInterruptInit(AC_t *ac, AC_MUXPOS_t pos, AC_MUXNEG_t neg, AC_HYSMODE_t hysmode,
-                     AC_INTMODE_t intmode, bool outen);
+                     AC_INTMODE_t intmode);
 bool getAcOutState(AC_t *ac);

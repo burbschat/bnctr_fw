@@ -70,22 +70,26 @@ void setup() {
     tcaInterruptInit(&TCA0, TCA_SINGLE_CLKSEL_DIV1024_gc,
                      F_CPU / 1024 * BUTTON_LONGPRESS_TIMEOUT_MS / 1000);
 
-    setupDacVref(VREF_DAC0REFSEL_1V5_gc, VREF_DAC1REFSEL_0V55_gc);
+    setupDacVref(VREF_DAC0REFSEL_1V5_gc, VREF_DAC1REFSEL_0V55_gc, VREF_DAC2REFSEL_0V55_gc);
 
     // Set reference voltages
     setDacRef(&DAC0, 30);
     setDacRef(&DAC1, 30);
+    setDacRef(&DAC2, 30);
 
     // Setup ACs and enable interrupts. Also enables AC output mapping to
     // package pin.
     // AC1 -> PA6 (IRDETA)
     // AC0 -> PA7 (IRDETB)
+    // AC2 -> PB5 (IRDETC)
     // Can set POS/NEG/BOTH to set which edge call the interrupt on. Also
     // possible to get the output state in the intterupt to determine the edge.
     acInterruptInit(&AC0, AC_MUXPOS_PIN0_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_50mV_gc,
-                    AC_INTMODE_BOTHEDGE_gc, true);
+                    AC_INTMODE_BOTHEDGE_gc);
     acInterruptInit(&AC1, AC_MUXPOS_PIN1_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_50mV_gc,
-                    AC_INTMODE_BOTHEDGE_gc, true);
+                    AC_INTMODE_BOTHEDGE_gc);
+    acInterruptInit(&AC2, AC_MUXPOS_PIN2_gc, AC_MUXNEG_DAC_gc, AC_HYSMODE_50mV_gc,
+                    AC_INTMODE_BOTHEDGE_gc);
 
     // Turn on the IR LEDs
     pinHigh(IR_LED);
@@ -194,7 +198,31 @@ ISR(AC1_AC_vect) {
     // Must clear interrupt flag manually
     AC1.STATUS = AC_CMP_bm;
 
+    // TODO: For now shortcut until three sensor pattern implemented
+    return;
+
     if (getAcOutState(&AC1)) {
+        // Comparator HIGH -> IR detected (OUT LED off)
+
+        // Indicate AC1 state high
+        ac_state_curr |= 0b10;
+    } else {
+        // Comparator HIGH -> IR blocked (OUT LED on)
+
+        // Indicate AC1 state low
+        ac_state_curr &= ~0b10;
+    }
+
+    // Handle AC state changed
+    acStateChangedHandler();
+}
+
+
+ISR(AC2_AC_vect) {
+    // Must clear interrupt flag manually
+    AC2.STATUS = AC_CMP_bm;
+
+    if (getAcOutState(&AC2)) {
         // Comparator HIGH -> IR detected (OUT LED off)
 
         // Indicate AC1 state high

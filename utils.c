@@ -6,7 +6,7 @@
 void setupPins() {
     // Set pin modes
     PORTA.DIR |= 0b00111110; // 7, 6 are IR det inputs, 0 is UPDI
-    PORTB.DIR |= 0b001111;   // 4, 5 are button inputs
+    PORTB.DIR |= 0b000111;   // 3, 4 are button inputs, 5 is IR det input
     PORTC.DIR |= 0b1111;     // All outputs
 
     // Initialize all output pins to low
@@ -18,22 +18,24 @@ void setupPins() {
     // impedance.
     PORTA.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;
     PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;
+    PORTB.PIN5CTRL = PORT_ISC_INPUT_DISABLE_gc;
 
     // Enable internal pullup (button on pulls low) and interrupts on both edge
     // for the button inputs
+    PORTB.PIN3CTRL = PORT_PULLUPEN_bm | PORT_ISC_BOTHEDGES_gc;
     PORTB.PIN4CTRL = PORT_PULLUPEN_bm | PORT_ISC_BOTHEDGES_gc;
-    PORTB.PIN5CTRL = PORT_PULLUPEN_bm | PORT_ISC_BOTHEDGES_gc;
 }
 
 // Setup DAC for AC vref as required in this firmware
-void setupDacVref(VREF_DAC0REFSEL_t ref1, VREF_DAC1REFSEL_t ref2) {
+void setupDacVref(VREF_DAC0REFSEL_t ref0, VREF_DAC1REFSEL_t ref1, VREF_DAC2REFSEL_t ref2) {
     // Use DAC output as reference voltage for AC so setup the DAC(s).
     // AC0 uses DAC0, AC1 uses DAC1 etc.
-    VREF.CTRLA = ref1 | ref2;
-    VREF.CTRLB = VREF_DAC0REFEN_bm | VREF_DAC1REFEN_bm;
+    VREF.CTRLA = ref0 | ref1 | ref2;
+    VREF.CTRLB = VREF_DAC0REFEN_bm | VREF_DAC1REFEN_bm | VREF_DAC2REFEN_bm;
     // Enable DAC(s)
     DAC0.CTRLA = DAC_ENABLE_bm;
     DAC1.CTRLA = DAC_ENABLE_bm;
+    DAC2.CTRLA = DAC_ENABLE_bm;
 }
 
 // Drive pins organized in array according to mask
@@ -186,15 +188,11 @@ void setDacRef(DAC_t *dac, register8_t val) {
 }
 
 void acInterruptInit(AC_t *ac, AC_MUXPOS_t pos, AC_MUXNEG_t neg, AC_HYSMODE_t hysmode,
-                     AC_INTMODE_t intmode, bool outen) {
+                     AC_INTMODE_t intmode) {
     // Set positive and negative input
     ac->MUXCTRLA = pos | neg;
-    // Enable AC, set hysteresis, enable output on pin.
-    // Output pin is fixed for each AC, see datasheet.
+    // Enable AC and set hysteresis
     ac->CTRLA = AC_ENABLE_bm | hysmode | intmode;
-    if (outen) {
-        ac->CTRLA |= AC_OUTEN_bm;
-    }
     // Enable interrupt
     ac->INTCTRL = AC_CMP_bm;
 }
