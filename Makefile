@@ -108,4 +108,4 @@ fuse:
 	avrdude -v -p $(DEVICE) -c $(PROGRAMMER) -P $(PORT) -b $(BAUD) -U fuse2:w:0x7e:m
 
 clean:
-	rm -f $(OBJS) $(OBJS_DEBUG) main.elf main.hex main_debug.elf main_debug.hex
+	rm -f $(OBJS) $(OBJSDEBUG) $(OBJS:.o=.d) $(OBJSDEBUG:.o=.d) main.elf main.hex maindebug.elf maindebug.hex
