@@ -32,8 +32,19 @@ int part_count = 0;
 // (HIGH or LOW). By checking the current and last state it is possible to
 // deduce the direction the tape moved as the pattern has at least three
 // elements and no mirror symmetry.
-uint8_t ac_state_prev = 0b11;
-uint8_t ac_state_curr = 0b11;
+uint8_t ac_state_prev = 0b101;
+uint8_t ac_state_curr = 0b101;
+
+// Bitmasks for each of the three sensors
+#define AC_STATE_S0_bm 0b001 // Top sensor
+#define AC_STATE_S1_bm 0b010 // Middle sensor
+#define AC_STATE_S2_bm 0b100 // Bottom sensor
+
+// Macro to get the bits for sensor 0 and sensor 2 but next to each other. Used
+// for support of the two-sensor mode. Map sensor 0 to 0b01 and sensor 2 to
+// 0b10.
+#define AC_STATE_TWOSTATE(state)                                                                   \
+    (((state & AC_STATE_S0_bm) >> 0) | ((state & AC_STATE_S2_bm) >> 2) << 1)
 
 // Pointer to the callback function the called by interrupt after button
 // longpress timer times out.
@@ -148,13 +159,17 @@ void updateHoleCount() {
 void acStateChangedHandler() {
     // Ignore state 0b11 as this is the shortest state and we only require
     // three to figure out the direction.
-    if ((ac_state_curr != 0b11) && (ac_state_curr != ac_state_prev)) {
-        if (ac_state_curr == ((ac_state_prev + 1) % 3)) {
+    if ((AC_STATE_TWOSTATE(ac_state_curr) != 0b11) &&
+        (AC_STATE_TWOSTATE(ac_state_curr) != AC_STATE_TWOSTATE(ac_state_prev))) {
+        if (AC_STATE_TWOSTATE(ac_state_curr) == ((AC_STATE_TWOSTATE(ac_state_prev) + 1) % 3)) {
             state_trans_count++;
-        } else if (((ac_state_curr + 1) % 3) == ac_state_prev) {
+        } else if (((AC_STATE_TWOSTATE(ac_state_curr) + 1) % 3) ==
+                   AC_STATE_TWOSTATE(ac_state_prev)) {
             state_trans_count--;
         } else {
-            // TODO: Error state? But really really should never happen I guess...
+            // Technically an error state, but really really should never happen I guess...
+            displayErr(digit_buffer);
+            return;
         }
 
         // Do the state update only if the state really changed (otherwise a
@@ -171,67 +186,69 @@ void acStateChangedHandler() {
         // depending on whether the tape end is currently at the top or
         // bottom of the device.
     }
+
+#ifdef DEBUG_SHOW_SENSOR_STATE
+    displayACStates((uint8_t[]){ ac_state_curr, ac_state_prev, 0 }, digit_buffer);
+#endif /* ifdef DEBUG_SHOW_SENSOR_STATE */
 }
 
-// AC Interrupts for hole detection
-ISR(AC0_AC_vect) {
+// AC Interrupts for hole detection.
+// Note that the SC number does not necessarily match the sensor number
+// (whichever is fine so the assignment was chosen as to simplify PCB routing).
+ISR(AC0_AC_vect) { // Sensor 1
     // Must clear interrupt flag manually
     AC0.STATUS = AC_CMP_bm;
 
     if (getAcOutState(&AC0)) {
         // Comparator HIGH -> IR detected (OUT LED off)
 
-        // Indicate AC0 state high
-        ac_state_curr |= 0b01;
+        // Indicate sensor 1 state high. AC0 is sensor 1!
+        ac_state_curr |= AC_STATE_S1_bm;
     } else {
         // Comparator HIGH -> IR blocked (OUT LED on)
 
-        // Indicate AC0 state low
-        ac_state_curr &= ~0b01;
+        // Indicate sensor 1 state low. AC0 is sensor 1!
+        ac_state_curr &= ~AC_STATE_S1_bm;
     }
 
     // Handle AC state changed
     acStateChangedHandler();
 }
 
-ISR(AC1_AC_vect) {
+ISR(AC1_AC_vect) { // Sensor 0
     // Must clear interrupt flag manually
     AC1.STATUS = AC_CMP_bm;
-
-    // TODO: For now shortcut until three sensor pattern implemented
-    return;
 
     if (getAcOutState(&AC1)) {
         // Comparator HIGH -> IR detected (OUT LED off)
 
-        // Indicate AC1 state high
-        ac_state_curr |= 0b10;
+        // Indicate sensor 0 state high. AC1 is sensor 0!
+        ac_state_curr |= AC_STATE_S0_bm;
     } else {
         // Comparator HIGH -> IR blocked (OUT LED on)
 
-        // Indicate AC1 state low
-        ac_state_curr &= ~0b10;
+        // Indicate sensor 0 state low. AC1 is sensor 0!
+        ac_state_curr &= ~AC_STATE_S0_bm;
     }
 
     // Handle AC state changed
     acStateChangedHandler();
 }
 
-
-ISR(AC2_AC_vect) {
+ISR(AC2_AC_vect) { // Sensor 2
     // Must clear interrupt flag manually
     AC2.STATUS = AC_CMP_bm;
 
     if (getAcOutState(&AC2)) {
         // Comparator HIGH -> IR detected (OUT LED off)
 
-        // Indicate AC1 state high
-        ac_state_curr |= 0b10;
+        // Indicate sensor 2 state high. Here AC and sensor numbers match!
+        ac_state_curr |= AC_STATE_S2_bm;
     } else {
         // Comparator HIGH -> IR blocked (OUT LED on)
 
-        // Indicate AC1 state low
-        ac_state_curr &= ~0b10;
+        // Indicate sensor 2 state low. Here AC and sensor numbers match!
+        ac_state_curr &= ~AC_STATE_S2_bm;
     }
 
     // Handle AC state changed

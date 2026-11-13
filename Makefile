@@ -53,7 +53,8 @@ CFLAGS = -Wall -Os \
 		-DBUTTON_LONGPRESS_TIMEOUT_MS=$(BUTTON_LONGPRESS_TIMEOUT_MS) \
 		-DHIDE_LEADING_ZEROS=$(HIDE_LEADING_ZEROS) \
 		-MMD \
-		-MP
+		-MP \
+		#-DDEBUG_SHOW_SENSOR_STATE # Set to indicate the sensor state on the display (and nothing else)
 # Extra flags for debug build:
 # - Include debug symbols (-g)
 # - No optimization (-O0, last one wins so -Os ignored)

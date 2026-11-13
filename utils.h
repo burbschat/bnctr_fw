@@ -100,6 +100,12 @@ static const uint8_t LETTER_MASK_LUT[26] = {
 // Macro to get mask for a given character. Only works with lower case values
 // but that is fine as the display does mix upper/lower case anyways.
 #define MASK_FOR_CHAR(c) (LETTER_MASK_LUT[(c) - 'a'])
+// Horizontal bars at top/mid/bot position
+static const uint8_t HBAR_MASK_LUT[3] = {
+    0b00000001, // Top segment (idx 0)
+    0b00001000, // Middle segment (idx 3)
+    0b01000000, // Bottom segment (idx 6)
+};
 
 // State transitions are
 // 0b00 0b01 0b11 0b10
@@ -142,10 +148,12 @@ void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins);
 void blankDisplay();
 void clearDigitBuffer(uint8_t *buffer);
 void setDigitBufferInt(uint16_t val, bool hide_leading_zeros, uint8_t *buffer);
+void displayACStates(uint8_t *ac_states, uint8_t *buffer);
 void setDigitBufferIntMasked(uint16_t val, uint8_t digit_mask, bool hide_leading_zeros,
                              uint8_t *buffer);
 void displayDigit(uint8_t mask, uint8_t dig);
 void displayHPPValue(uint16_t val, uint8_t *buffer);
+void displayErr(uint8_t *buffer);
 void digitsMuxNext(uint8_t *segMasks);
 
 // Timers

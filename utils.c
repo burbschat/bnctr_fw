@@ -94,6 +94,16 @@ void setDigitBufferInt(uint16_t val, bool hide_leading_zeros, uint8_t *buffer) {
     setDigitBufferIntMasked(val, (1 << N_DIGS) - 1, hide_leading_zeros, buffer);
 }
 
+void displayACStates(uint8_t *ac_states, uint8_t *buffer) {
+    for (uint8_t i = 0; i < 3; i += 1) {
+        uint8_t buffer_val = 0;
+        for (uint8_t j = 0; j < 3; j += 1) {
+            buffer_val |= (((ac_states[i] & 0b1 << j) != 0) ? HBAR_MASK_LUT[j] : 0b0);
+        }
+        buffer[i] = buffer_val;
+    }
+}
+
 // Drive given digit using passed mask
 void displayDigit(uint8_t segMask, uint8_t dig) {
     // Blank display before messing with the enabled segments
@@ -113,6 +123,13 @@ void displayHPPValue(uint16_t val, uint8_t *buffer) {
     setDigitBufferIntMasked(val, 0b011, HIDE_LEADING_ZEROS, buffer);
     // Prepend with the letter P
     buffer[0] = MASK_FOR_CHAR('p');
+}
+
+// Display ERR to indicate error
+void displayErr(uint8_t *buffer) {
+    buffer[0] = MASK_FOR_CHAR('e');
+    buffer[1] = MASK_FOR_CHAR('r');
+    buffer[2] = MASK_FOR_CHAR('r');
 }
 
 // Execute one step of the digit multiplexing.
