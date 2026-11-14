@@ -32,8 +32,14 @@ int part_count = 0;
 // (HIGH or LOW). By checking the current and last state it is possible to
 // deduce the direction the tape moved as the pattern has at least three
 // elements and no mirror symmetry.
-uint8_t ac_state_prev = 0b101;
-uint8_t ac_state_curr = 0b101;
+uint8_t ac_state_prev = 0b111;
+uint8_t ac_state_curr = 0b111;
+
+// Status for three sensor counting algorithm
+bool counting = false;
+uint8_t ac_state_idx = 0;
+static const uint8_t ac_states[6] = { 0b100, 0b110, 0b111, 0b011, 0b001, 0b000 };
+//                                    ^ exit/enter top            ^ exit/enter bottom
 
 // Bitmasks for each of the three sensors
 #define AC_STATE_S0_bm 0b001 // Top sensor
@@ -132,23 +138,22 @@ ISR(TCB0_INT_vect) {
     updated_count++;
 }
 
-// Update hole count (three state transitions per hole) Always undercounting by
-// one hole as we need at least two holes not detect a transition.
-// TODO: Not sure how to deal with this yet. Perhaps we cannot get around
-// detecting the start/end of tape conditions? If we could detect those
-// reliably, I guess one could just add 1 to the hole count to correct it?
-// Maybe, do the +1 after start pattern and end pattern detected each once
-// (condition for tape completely passed the device).
-// Another option might be to adjust hardware to actually never give the 0b11
-// state except when there is not tape inserted. If possible, this might be the
-// most elegant solution...
-// +1 to the transitions count here (together with init values for curr/prev
-// state) makes it such that we count the same number for both directions
-// (up/down).
 void updateHoleCount() {
+#ifdef COUNT_ALG_TWOSTATE
+    // +1 to the transitions count here (together with init values for
+    // curr/prev state) makes it such that we count the same number for both
+    // directions (up/down).
     hole_count = (abs(state_trans_count) + 1) / 3;
+#else
+    // In three state mode must add 6 to the state count to get the correct
+    // hole number (related to the  entry/exit states only counting as one
+    // state transision each).
+    hole_count = abs(state_trans_count) / 6;
+#endif /* ifdef DEBUG_SHOW_SENSOR_STATE */
+
     // Update part count derived from hole count
     part_count = hole_count / holes_per_part;
+
     // Display the new count if in correct UI mode
     if (ui_state == COUNT) {
         setDigitBufferInt(part_count, HIDE_LEADING_ZEROS, digit_buffer);
@@ -157,6 +162,8 @@ void updateHoleCount() {
 
 // Handler called on AC state change. This function does the actual counting.
 void acStateChangedHandler() {
+#ifdef COUNT_ALG_TWOSTATE
+    // The 'old' counting algorithm using only two out of the three sensors.
     // Ignore state 0b11 as this is the shortest state and we only require
     // three to figure out the direction.
     if ((AC_STATE_TWOSTATE(ac_state_curr) != 0b11) &&
@@ -185,10 +192,62 @@ void acStateChangedHandler() {
         // 0b11 0b10 b011 0b10
         // depending on whether the tape end is currently at the top or
         // bottom of the device.
+        // Unfortunately this pattern is not directional, so we cannot make
+        // this foolproof (i.e. user moves the tape slightly backwards/forwards
+        // could also toggle between the two states). This is solved by using
+        // three sensors.
+    }
+#else
+    // The 'new' counting algorithm using all three sensors.
+    // Note that the exit/entry state transmissions count as four state
+    // transmissions in order to compensate for the actual number of holes
+    // passing the device. Compensation is applied here rather than in the
+    // number of holes calculation, as there adding an offset would result in a
+    // non-zero number of holes when state_trans_count = 0, which we don't
+    // want.
+    if (counting) {
+        uint8_t idx_f = (ac_state_idx + 1) % 6;
+        uint8_t idx_b = (ac_state_idx + 5) % 6;
+        if (ac_state_curr == ac_states[idx_f]) { // Move forward
+            state_trans_count++;
+            ac_state_idx = idx_f;
+        } else if (ac_state_curr == ac_states[idx_b]) { // Move backward
+            state_trans_count--;
+            ac_state_idx = idx_b;
+        } else if (ac_state_curr == 0b101) { // Exit condition
+            // Infer the direction of motion from the previous state
+            if (ac_state_prev == 0b001) {
+                state_trans_count += 4; // Exit from bottom
+            } else if (ac_state_prev == 0b100) {
+                state_trans_count -= 4; // Exit from top
+            }
+            counting = false; // No longer counting, ac_state_idx becomes invalid
+        }
+    } else {
+        if (ac_state_curr == 0b100) {
+            state_trans_count += 4; // Enter from top
+            counting = true;        // Set counting flag
+            ac_state_idx = 0;       // Set valid value for ac_state_idx
+        } else if (ac_state_curr == 0b001) {
+            state_trans_count -= 4; // Enter from bottom
+            counting = true;        // Set counting flag
+            ac_state_idx = 4;       // Set valid value for ac_state_idx
+        }
     }
 
+    // Could put this into the counting branch but nicer to know the last state
+    // for debugging so always update for now.
+    ac_state_prev = ac_state_curr;
+
+    // Update the hole count and displayed value
+    updateHoleCount();
+#endif /* ifdef COUNT_ALG_TWOSTATE */
+
 #ifdef DEBUG_SHOW_SENSOR_STATE
-    displayACStates((uint8_t[]){ ac_state_curr, ac_state_prev, 0 }, digit_buffer);
+    // Could also show previous state if required. The function allows to show
+    // any state on any digit.
+    displayACStates((uint8_t[]){ ac_state_curr, 0, 0 }, (bool[]){ true, false, false },
+                    digit_buffer);
 #endif /* ifdef DEBUG_SHOW_SENSOR_STATE */
 }
 

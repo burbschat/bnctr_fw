@@ -54,7 +54,7 @@ CFLAGS = -Wall -Os \
 		-DHIDE_LEADING_ZEROS=$(HIDE_LEADING_ZEROS) \
 		-MMD \
 		-MP \
-		#-DDEBUG_SHOW_SENSOR_STATE # Set to indicate the sensor state on the display (and nothing else)
+		#-DDEBUG_SHOW_SENSOR_STATE # Set to indicate the sensor state on the left most digit
 # Extra flags for debug build:
 # - Include debug symbols (-g)
 # - No optimization (-O0, last one wins so -Os ignored)

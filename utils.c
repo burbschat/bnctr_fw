@@ -94,13 +94,15 @@ void setDigitBufferInt(uint16_t val, bool hide_leading_zeros, uint8_t *buffer) {
     setDigitBufferIntMasked(val, (1 << N_DIGS) - 1, hide_leading_zeros, buffer);
 }
 
-void displayACStates(uint8_t *ac_states, uint8_t *buffer) {
+void displayACStates(uint8_t *ac_states, bool *update_en, uint8_t *buffer) {
     for (uint8_t i = 0; i < 3; i += 1) {
         uint8_t buffer_val = 0;
         for (uint8_t j = 0; j < 3; j += 1) {
             buffer_val |= (((ac_states[i] & 0b1 << j) != 0) ? HBAR_MASK_LUT[j] : 0b0);
         }
-        buffer[i] = buffer_val;
+        if (update_en[i]) {
+            buffer[i] = buffer_val;
+        }
     }
 }
 

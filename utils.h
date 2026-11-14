@@ -148,7 +148,7 @@ void driveMask(uint8_t mask, const Pin *pins, const uint8_t nPins);
 void blankDisplay();
 void clearDigitBuffer(uint8_t *buffer);
 void setDigitBufferInt(uint16_t val, bool hide_leading_zeros, uint8_t *buffer);
-void displayACStates(uint8_t *ac_states, uint8_t *buffer);
+void displayACStates(uint8_t *ac_states, bool *update_en, uint8_t *buffer);
 void setDigitBufferIntMasked(uint16_t val, uint8_t digit_mask, bool hide_leading_zeros,
                              uint8_t *buffer);
 void displayDigit(uint8_t mask, uint8_t dig);
