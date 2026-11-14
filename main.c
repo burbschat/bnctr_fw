@@ -41,6 +41,9 @@ uint8_t ac_state_idx = 0;
 static const uint8_t ac_states[6] = { 0b100, 0b110, 0b111, 0b011, 0b001, 0b000 };
 //                                    ^ exit/enter top            ^ exit/enter bottom
 
+// Counting error flag (set when no valid state could be matched)
+bool counting_error = false;
+
 // Bitmasks for each of the three sensors
 #define AC_STATE_S0_bm 0b001 // Top sensor
 #define AC_STATE_S1_bm 0b010 // Middle sensor
@@ -125,7 +128,7 @@ ISR(TCB0_INT_vect) {
     // two counts then defines a duty cycle.
 
     // Illumination duty cycle set with an integer divider (fraction). Turn the
-    // display only on every MUX_DUTY_DIVth cycle. For exsample if MUX_DUTY_DIV
+    // display only on every MUX_DUTY_DIVth cycle. For example if MUX_DUTY_DIV
     // = 4, every 4th MUX_STEP_PERIOD_MS/4 long cycle will illuminate a given
     // digit.
     static uint8_t updated_count = 0;
@@ -147,7 +150,7 @@ void updateHoleCount() {
 #else
     // In three state mode must add 6 to the state count to get the correct
     // hole number (related to the  entry/exit states only counting as one
-    // state transision each).
+    // state transition each).
     hole_count = abs(state_trans_count) / 6;
 #endif /* ifdef DEBUG_SHOW_SENSOR_STATE */
 
@@ -156,7 +159,14 @@ void updateHoleCount() {
 
     // Display the new count if in correct UI mode
     if (ui_state == COUNT) {
-        setDigitBufferInt(part_count, HIDE_LEADING_ZEROS, digit_buffer);
+        if (!counting_error) {
+            setDigitBufferInt(part_count, HIDE_LEADING_ZEROS, digit_buffer);
+        } else {
+            // Indicate counting error. The counting algorithm keeps running
+            // but the count is treated as invalid and not shown on the
+            // display.
+            displayErr(digit_buffer);
+        }
     }
 }
 
@@ -174,9 +184,9 @@ void acStateChangedHandler() {
                    AC_STATE_TWOSTATE(ac_state_prev)) {
             state_trans_count--;
         } else {
-            // Technically an error state, but really really should never happen I guess...
-            displayErr(digit_buffer);
-            return;
+            // Indicate error if in undefined state. Actual display of this is
+            // handled in updateHoleCount.
+            counting_error = true;
         }
 
         // Do the state update only if the state really changed (otherwise a
@@ -222,6 +232,10 @@ void acStateChangedHandler() {
                 state_trans_count -= 4; // Exit from top
             }
             counting = false; // No longer counting, ac_state_idx becomes invalid
+        } else {
+            // Indicate error if in undefined state. Actual display of this is
+            // handled in updateHoleCount.
+            counting_error = true;
         }
     } else {
         if (ac_state_curr == 0b100) {
@@ -229,9 +243,13 @@ void acStateChangedHandler() {
             counting = true;        // Set counting flag
             ac_state_idx = 0;       // Set valid value for ac_state_idx
         } else if (ac_state_curr == 0b001) {
-            state_trans_count -= 4; // Enter from bottom
-            counting = true;        // Set counting flag
-            ac_state_idx = 4;       // Set valid value for ac_state_idx
+            state_trans_count -= 4;          // Enter from bottom
+            counting = true;                 // Set counting flag
+            ac_state_idx = 4;                // Set valid value for ac_state_idx
+        } else if (ac_state_curr == 0b000) { // Check for the impossible state
+            // Indicate error if in undefined state. Actual display of this is
+            // handled in updateHoleCount.
+            counting_error = true;
         }
     }
 
@@ -383,6 +401,8 @@ void buttonsStateChangedHandler() {
         if (button_r & BUTTON_UPPER_bm) {
             // Reset count
             state_trans_count = 0;
+            // Reset counting error state
+            counting_error = false;
             updateHoleCount();
         }
         // Lower button falling edge
