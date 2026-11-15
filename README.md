@@ -1,8 +1,9 @@
 # BNCTR FW
 Firmware for my version of the [BeanCounter](https://github.com/NPoole/BeanCounter).
-This is a ~port~ rewrite (*work in progress!*) of the original firmware by Nick
-Poole. Not compatible with the original BeanCounter hardware, but rather my own
-version of it (which steals all the good ideas from the original).
+This is a ~port~ ~rewrite~ at this point something completely different from the 
+original firmware by Nick Poole. Not compatible with the original BeanCounter
+hardware, but rather my own version of it (which steals all the good ideas from
+the original).
 
 The original firmware had to use polling due to limitations of the used MCU but
 this version can rely on interrupts thanks to the analog comparators of the
@@ -10,9 +11,11 @@ ATTiny1616. Thus, this firmware (together with the updated hardware) is
 potentially more capable than the original.
 
 Also, this firmware is *not* an Arduino sketch but rather written in plain C
-and build using the vendor (AVR) provided toolchain.
+and build using the vendor (AVR) provided toolchain (see the Makefile).
 
 ## Toolchain Setup
+Probably available as system packages.
+
 ### Arch Linux
 * Compiling: `avr-gcc avr-libc`
 * Flashing: `avrdude`
@@ -23,6 +26,16 @@ Didn't try but probably
 * Compiling: `gcc-avr avr-libc binutils-avr`
 * Flashing: `avrdude`
 * Debugging: `gdb-avr`
+
+## Building and Flashing
+All setup in the Makefile (with proper dependencies). Some adjustments may be
+required to the `flash` target depending on what serial port the device is
+mapped to.
+
+### Enabling CP2102 LEDs
+There is of course some weird vendor tool for that (Windows only), but this
+repository provides `cp2102nqfn24_enable_activity_gpio.py` as an alternative to
+just set the correct bits. Use at your own risk.
 
 ## LSP
 I use NeoVim with LSP and to get the `compile_commands.json` which lets the
@@ -52,7 +65,7 @@ Use gbd as usual. Apparently the attiny1616 only supports up to two breakpoints
 so keep that in mind I suppose.
 
 `avr-absurd` obviously occupies the serial port. To re-compile and flash
-without stopping `avr-absurt` consider re-compiling with `make main_debug.elf`
+without stopping `avr-absurd` consider re-compiling with `make main_debug.elf`
 and then use the `load` command in gdb to flash to the device (ridiculously
 useful). This also reloads the debug info like code listings (gdb `list`
 command).
