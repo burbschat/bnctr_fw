@@ -1,5 +1,7 @@
 # BNCTR FW
 Firmware for my version of the [BeanCounter](https://github.com/NPoole/BeanCounter).
+The corresponding hardware design files are available in [this repository](github.com/burbschat/bnctr).
+
 This is a ~port~ ~rewrite~ at this point something completely different from the 
 original firmware by Nick Poole. Not compatible with the original BeanCounter
 hardware, but rather my own version of it (which steals all the good ideas from
