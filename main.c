@@ -36,6 +36,28 @@ uint8_t ac_state_prev = 0b111;
 uint8_t ac_state_curr = 0b111;
 
 // Status for three sensor counting algorithm
+// Pattern for with three sensors:
+// 111 -> 110 -> 111 -> 101 --------------
+//     |      |          |               |
+//     -> 011 -          v               v
+//                    [ 100 110 111 011 001 000 ]
+//                       |               |         -> 110 -
+//                       |               v         |      |
+//                       -------------> 101 -> 111 -> 011 -> 111
+// Enter from 101 -> 100 or 101 -> 001. The pattern before that depends on
+// whether the tape enters from the top or bottom (110 vs 011), but the
+// algorithm ignores everything up to 110 or 001 anyways.
+// States in [ ... ] loop until exit on 100 or 001. The arrows indicate
+// progression with the tape moving a given direction. However, at every point
+// the direction can be reversed in case of which the arrows should also be
+// reversed.
+// In essence, there is the loop which can be entered/exited at the special
+// states 100 and 001. By knowing when we enter/exit, we can compensate for the
+// not directly detectable holes at the edges of the tape.
+// Note that every state of the pattern between and up to the entry/exit points
+// we can uniquely determine the direction of tape movement as well as if it
+// entered or left the detector on the top or bottom by knowing only the
+// current and previous state.
 bool counting = false;
 uint8_t ac_state_idx = 0;
 static const uint8_t ac_states[6] = { 0b100, 0b110, 0b111, 0b011, 0b001, 0b000 };
